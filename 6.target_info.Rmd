@@ -1,0 +1,305 @@
+---
+title: "6.target_info"
+author:
+  - Liu Zhen
+date: Wed Sep  6 10:45:19 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/liuzhen/Documents/GitHub/lz_crispr/CRISPR_analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = FALSE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+#source("./R_config.R")
+packages_to_load <- c("pcutils", "iCRISPR","dplyr","reshape2","ggsci","ggpubr","RColorBrewer","cowplot","patchwork","readr","tibble","vegan","ggrepel")
+# 检查并安装缺失的包
+for (package in packages_to_load) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+}
+# 加载包
+lapply(packages_to_load, library, character.only = TRUE)
+
+#color
+kin_col=c(k__Bacteria="#a6bce3",k__Fungi="#fdbf6f",k__Metazoa="#fb9a99",k__Viridiplantae="#a9d483",
+          k__Archaea="#1f78b4",k__Eukaryota_others="#8dd3c7",k__Viruses="#bda7c9")
+crispr_target_domain=c("Archaea"="#E9967A","Viruses"="#483D8B","Bacteria"="#698B69","Fungi"="#CD9B1D","Protozoa"="#B2DFEE")
+
+output="6.target_info/"
+
+```
+# relative location
+## arc
+### total
+```{bash}
+#Login01
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/archaea23
+cut -f5,28,30 arc23_random_bitscore_add_uniq_info > arc_total.csv
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23
+cut -f5,28,30 bac23_random_bitscore_add_uniq_info > bac_total.csv
+#local
+cd ~/Desktop/chart/relative_position/arc_total
+scp liuzhen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/archaea23/arc_total.csv .
+cd ~/Desktop/chart/relative_position/bac_total
+scp liuzhen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/bac_total.csv .
+
+```
+
+
+```{r}
+arc_loci <- read.table("~/Desktop/chart/relative_position/arc_total/arc_total.csv",header = TRUE,sep = "\t",check.name = F)
+head(arc_loci)
+library(reshape)
+library(ggplot2)
+library(ggpubr)
+
+arc_loci$gene_or_not[arc_loci$gene_or_not == "intergenic"] <- "intergene"
+arc_loci <- na.omit(arc_loci)
+
+p <- ggplot(arc_loci, aes(relative_loci,..density..,fill=target_kingdom,color=target_kingdom))+
+  geom_histogram(binwidth = 0.01,alpha=0.5)+
+  geom_line(stat='density',size=0.8,color="black")+
+  theme_bw() + theme(panel.grid=element_blank())+scale_y_continuous(expand=c(0,0))+
+  #scale_color_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+
+  #scale_fill_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+#"#838B8B" cellular organism;"#B2DFEE" protozoa
+  #ggtitle("relative position in gene")+
+  xlab("Protospacers' relative position in genes")+
+  scale_x_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1))+
+  theme_pubr(base_size = 24)
+p
+
+p3 <- p + facet_grid(target_kingdom ~ gene_or_not, scales = "free_y")
+
+p3
+
+```
+
+```{r}
+#filter out bacteria and fungi
+
+arc_loci2<-filter(arc_loci, target_kingdom%in%c("Archaea","Viruses","Bacteria"))
+
+p <- ggplot(arc_loci2, aes(relative_loci,..density..,fill=target_kingdom,color=target_kingdom))+
+  geom_histogram(binwidth = 0.01,alpha=0.5)+
+  geom_line(stat='density',size=0.8,color="black")+
+  theme_bw() + theme(panel.grid=element_blank())+scale_y_continuous(expand=c(0,0))+
+  scale_color_manual(values = c("#E9967A","#483D8B","#698B69"))+
+  scale_fill_manual(values = c("#E9967A","#483D8B","#698B69"))+#"#838B8B" cellular organism;"#B2DFEE" protozoa
+  #ggtitle("relative position in gene")+
+  xlab("Protospacers' relative position in genes")+
+  scale_x_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1))+
+  theme_pubr(base_size = 22)
+
+p
+
+p_1 <- p + facet_grid(target_kingdom ~ gene_or_not, scales = "free_y")
+
+p_1
+
+```
+### unique
+
+```{bash}
+#Login01
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/archaea23
+cut -f 4,22,24 arc23_uniq_random_bitscore > uniq_arc_total.csv
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23
+cut -f 4,22,24 bac23_uniq_random_bitscore > uniq_bac_total.csv
+#local
+cd ~/Desktop/chart/relative_position/arc_total
+scp liuzhen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/archaea23/uniq_arc_total.csv .
+cd ~/Desktop/chart/relative_position/bac_total
+scp liuzhen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/uniq_bac_total.csv .
+
+```
+
+```{r}
+uniq_arc_loci <- read.table("~/Desktop/chart/relative_position/arc_total/uniq_arc_total.csv",header = TRUE,sep = "\t",check.name = F)
+head(uniq_arc_loci)
+library(reshape)
+library(ggplot2)
+library(ggpubr)
+
+uniq_arc_loci$gene_or_not[uniq_arc_loci$gene_or_not == "intergenic"] <- "intergene"
+uniq_arc_loci <- na.omit(uniq_arc_loci)
+
+p <- ggplot(uniq_arc_loci, aes(relative_loci,..density..,fill=target_kingdom,color=target_kingdom))+
+  geom_histogram(binwidth = 0.01,alpha=0.5)+
+  geom_line(stat='density',size=0.8,color="black")+
+  theme_bw() + theme(panel.grid=element_blank())+scale_y_continuous(expand=c(0,0))+
+  #scale_color_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+
+  #scale_fill_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+#"#838B8B" cellular organism;"#B2DFEE" protozoa
+  #ggtitle("relative position in gene")+
+  xlab("Protospacers' relative position in genes")+
+  scale_x_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1))+
+  theme_pubr(base_size = 24)
+p
+
+p3 <- p + facet_grid(target_kingdom ~ gene_or_not, scales = "free_y")
+
+p3
+
+```
+
+```{r}
+#filter out bacteria and fungi
+
+uniq_arc_loci2<-filter(uniq_arc_loci, target_kingdom%in%c("Archaea","Viruses","Bacteria"))
+
+p <- ggplot(uniq_arc_loci2, aes(relative_loci,..density..,fill=target_kingdom,color=target_kingdom))+
+  geom_histogram(binwidth = 0.01,alpha=0.5)+
+  geom_line(stat='density',size=0.5,color="black")+
+  theme_bw() + theme(panel.grid=element_blank())+scale_y_continuous(expand=c(0,0))+
+  scale_color_manual(values = c("#E9967A","#483D8B","#698B69"))+
+  scale_fill_manual(values = c("#E9967A","#483D8B","#698B69"))+#"#838B8B" cellular organism;"#B2DFEE" protozoa
+  #ggtitle("relative position in gene")+
+  xlab("Protospacers' relative position in genes")+
+  scale_x_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1))+
+  theme_pubr(base_size = 24)+
+  theme(axis.text.x = element_text(size = 18),axis.text.y = element_text(size = 16))+
+  facet_grid(target_kingdom ~ gene_or_not, scales = "free_y")
+
+p
+
+ggsave(filename = "/Users/liuzhen/Documents/GitHub/lz_crispr/CRISPR_analysis/6.target_info/arc_uniq_loci.pdf",
+       plot=p,
+       device = "pdf",
+       width = 8,
+       height = 6,
+       dpi = 600)
+```
+
+## bac
+### total
+```{r}
+#2.bac_part
+bac_loci <- read.table("~/Desktop/chart/relative_position/bac_total/bac_total.csv",header = TRUE,sep = "\t",check.name = F)
+head(bac_loci)
+
+
+bac_loci$gene_or_not[bac_loci$gene_or_not == "intergenic"] <- "intergene"
+bac_loci <- na.omit(bac_loci)
+
+p <- ggplot(bac_loci, aes(relative_loci,..density..,fill=target_kingdom,color=target_kingdom))+
+  geom_histogram(binwidth = 0.01,alpha=0.5)+
+  geom_line(stat='density',size=0.8,color="black")+
+  theme_bw() + theme(panel.grid=element_blank())+scale_y_continuous(expand=c(0,0))+
+  #scale_color_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+
+  #scale_fill_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+#"#838B8B" cellular organism;"#B2DFEE" protozoa
+  #ggtitle("relative position in gene")+
+  xlab("Protospacers' relative position in genes")+
+  scale_x_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1))+
+  theme_pubr(base_size = 20)
+p
+
+p_bac <- p + facet_grid(target_kingdom ~ gene_or_not, scales = "free_y")
+
+p_bac
+
+
+#filter
+
+
+ggsave(filename = "~/Desktop/chart/Relative position/bac_total/bac_targets.pdf",
+       plot=p_bac,
+       device = "pdf",
+       width = 8,
+       height = 6,
+       dpi = 600)
+
+
+
+
+```
+
+### unique
+```{r}
+#2.bac_part
+uniq_bac_loci <- read.table("~/Desktop/chart/relative_position/bac_total/uniq_bac_total.csv",header = TRUE,sep = "\t",check.name = F)
+head(uniq_bac_loci)
+
+
+uniq_bac_loci$gene_or_not[uniq_bac_loci$gene_or_not == "intergenic"] <- "intergene"
+uniq_bac_loci <- na.omit(uniq_bac_loci)
+
+p <- ggplot(uniq_bac_loci, aes(relative_loci,..density..,fill=target_kingdom,color=target_kingdom))+
+  geom_histogram(binwidth = 0.01,alpha=0.5)+
+  geom_line(stat='density',size=0.8,color="black")+
+  theme_bw() + theme(panel.grid=element_blank())+scale_y_continuous(expand=c(0,0))+
+  #scale_color_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+
+  #scale_fill_manual(values = c("#E9967A", "#698B69", "#B2DFEE","#483D8B"))+#"#838B8B" cellular organism;"#B2DFEE" protozoa
+  #ggtitle("relative position in gene")+
+  xlab("Protospacers' relative position in genes")+
+  scale_x_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1))+
+  theme_pubr(base_size = 20)
+p
+
+p_bac_uniq <- p + facet_grid(target_kingdom ~ gene_or_not, scales = "free_y")
+
+p_bac_uniq
+
+
+#filter
+
+
+ggsave(filename = "~/Desktop/chart/Relative position/bac_total/bac_targets.pdf",
+       plot=p_bac,
+       device = "pdf",
+       width = 8,
+       height = 6,
+       dpi = 600)
+```
+
+```{r}
+#filter out bacteria and fungi
+
+uniq_bac_loci2<-filter(uniq_bac_loci, target_kingdom%in%c("Archaea","Viruses","Bacteria"))
+
+p <- ggplot(uniq_bac_loci2, aes(relative_loci,..density..,fill=target_kingdom,color=target_kingdom))+
+  geom_histogram(binwidth = 0.01,alpha=0.5)+
+  geom_line(stat='density',size=0.5,color="black")+
+  theme_bw() + theme(panel.grid=element_blank())+scale_y_continuous(expand=c(0,0))+
+  scale_color_manual(values = c("#E9967A","#483D8B","#698B69"))+
+  scale_fill_manual(values = c("#E9967A","#483D8B","#698B69"))+#"#838B8B" cellular organism;"#B2DFEE" protozoa
+  #ggtitle("relative position in gene")+
+  xlab("Protospacers' relative position in genes")+
+  scale_x_continuous(breaks = c(0,0.2,0.4,0.6,0.8,1))+
+  theme_pubr(base_size = 24)+
+  theme(axis.text.x = element_text(size = 18),axis.text.y = element_text(size = 16))+
+  facet_grid(target_kingdom ~ gene_or_not, scales = "free_y")
+
+p
+
+ggsave(filename = "/Users/liuzhen/Documents/GitHub/lz_crispr/CRISPR_analysis/6.target_info/bac_uniq_loci.pdf",
+       plot=p,
+       device = "pdf",
+       width = 8,
+       height = 6,
+       dpi = 600)
+```
+
+# some species

@@ -1,0 +1,441 @@
+---
+title: "2.Blast_res"
+author:
+  - Liu Zhen
+date: Wed Aug 16 00:55:36 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis/"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = TRUE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+#source("./R_config.R")
+packages_to_load <- c("pcutils", "iCRISPR","dplyr","reshape2","ggsci","ggpubr","RColorBrewer","cowplot","patchwork","readr","tibble","vegan","ggrepel")
+# 检查并安装缺失的包
+for (package in packages_to_load) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+}
+# 加载包
+lapply(packages_to_load, library, character.only = TRUE)
+
+#color
+kin_col=c(k__Bacteria="#a6bce3",k__Fungi="#fdbf6f",k__Metazoa="#fb9a99",k__Viridiplantae="#a9d483",
+          k__Archaea="#1f78b4",k__Eukaryota_others="#8dd3c7",k__Viruses="#bda7c9")
+crispr_target_domain=c("Archaea"="#E9967A","Viruses"="#483D8B","Bacteria"="#698B69","Fungi"="#CD9B1D","Protozoa"="#B2DFEE")
+
+#output dir
+output="2.Blast_res/"
+```
+
+# Blast result
+
+## arc
+```{r}
+arc_net2<-readr::read_delim("../data/arc23/arc23_random_bitscore_add_uniq_info",delim = "\t")
+colnames(arc_net2)%>%copy_vector()
+
+#所有列名
+c("spacer_id","unique_spacer_id","target_taxid","target_lineage","target_kingdom","source_genome","CRISPR_id","sseqid","pident","length","mismath","gapopen","qstart","qends","start","send","evalue","bitscore","database","sseqid_corrected","sbjct_taxid(before lca)","spacer_taxid","spacer_lineage","spacer_kingdom","target_genome","loci_start(gene annotation)","loci_end(gene annotation)","gene_or_not","sseq_length","relative_loci","gene_or_intergene_length","target_genome_gene_ratio")
+
+
+#去除部分NA
+arc_net2=na.omit(arc_net2)
+table(arc_net2$gene_or_not)
+arc_net2[which(arc_net2$gene_or_not=="intergenic"),"gene_or_not"]="intergene"
+
+#常用分析的几列
+arc_net=arc_net2[,c("source_genome","CRISPR_id","spacer_id",
+            "spacer_kingdom","spacer_taxid","spacer_lineage","target_genome",
+            "target_kingdom","target_taxid","target_lineage","gene_or_not")]
+#同一跟之前一样的列名
+colnames(arc_net)=c("source_genome","CRISPR_id","Spacer_id",
+            "source_kingdom","source_taxid","source_lineage","target_genome",
+            "target_kingdom","target_taxid","target_lineage","gene_or_not")
+
+arc_net=dplyr::distinct(arc_net,Spacer_id,.keep_all = TRUE)
+arc_net=na.omit(arc_net)
+
+arc_net$source_lineage%>%stringr::str_extract(.,"s__.*")->arc_net$source_name
+arc_net$target_lineage%>%stringr::str_extract(.,"s__.*")->arc_net$target_name
+
+saveRDS(arc_net,file = "2.Blast_res/1.arc_all_info0816_lz.RDS")
+```
+
+target到不同kingdom的数量和比例情况
+```{r}
+any(duplicated(arc_net$Spacer_id))
+
+tmp=arc_net%>%mutate(target_kingdom=ifelse(target_kingdom%in%c("cellular organisms","Eukaryota","Fungi","Protozoa"),
+                                           "Others",target_kingdom))
+kingdom_gene=count(tmp,target_kingdom,gene_or_not)%>%reshape2::acast(gene_or_not~target_kingdom)
+
+stackplot(kingdom_gene,relative = F,number = T,repel = T)+
+  labs(x=NULL,y="Spacer number")+
+  scale_fill_manual(values = c( "#a6cee3","#78c679"))+mytheme
+ggsave("2.Blast_res/1.arc_target_kingdom_geneornot.pdf",height = 5)
+```
+
+
+## bac
+细菌的表目前在/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/bac23_all_info_no_gene，16G太大了，要想办法处理
+
+列名
+all_spacer_id
+target_taxid
+target_lineage
+target_kingdom
+source_genome
+CRISPR_id
+sseqid
+pident
+length
+mismath
+gapopen
+qstart
+qends
+start
+send
+evalue
+bitscore
+database
+sseqid_corrected
+sbjct_taxid(before lca)
+spacer_taxid
+spacer_lineage
+spacer_kingdom
+target_genome
+
+```{bash}
+#常用分析的几列
+cat bac23_all_info_no_gene|cut -f1-6,21-24 >pc/bac23_net
+
+#8.14还有13G，24,474,900条记录，一共level4的spacer好像才25,000,000左右，应该有不少重复的？
+$ wc -l bac23_net
+24474900 bac23_net
+
+#8.21检查后还有11G, 19,022,419条记录,占75%左右
+
+#目前大多分析只需要看lca后的物种关系，所以可以sort｜uniq ，发现这里的已经是uniq后的了
+#所以说，细菌就是绝大部分的spacer都可以被blast到结果？
+#那目前数据太大了，考虑各种计算都分块进行再整合
+
+
+#同一物种内 互相target的不同strain 是否针对 “对方有 我没有”这个原则来设计spacer
+#这个要做的话应该要考虑lca前的
+```
+
+
+
+假设将bacteria分成20份，都不带表头，bac_net_1-20
+
+spacer_id
+target_taxid
+target_lineage
+target_kingdom
+source_genome
+CRISPR_id
+spacer_taxid
+spacer_lineage
+spacer_kingdom
+target_genome
+
+```{r}
+library(iCRISPR)
+library(dplyr)
+#读取（集群
+for (i in 1:20) {
+  bac_net<-readr::read_delim(paste0("bac_net_",i),delim = "\t",col_names = F)
+  #bac_net=bac_net[,c(5,6,1,4,2,3,10,9,7,8)]
+  bac_net=bac_net[,c(5,6,1,9,7,8,10,4,2,3)]
+  bac_net=na.omit(bac_net)
+  colnames(bac_net)=c("source_genome","CRISPR_id","Spacer_id",
+            "source_kingdom","source_taxid","source_lineage","target_genome",
+            "target_kingdom","target_taxid","target_lineage")
+  bac_net$source_lineage%>%stringr::str_extract(.,"s__.*")->bac_net$source_name
+  bac_net$target_lineage%>%stringr::str_extract(.,"s__.*")->bac_net$target_name
+  saveRDS(bac_net,file = paste0("bac_net_",i,".RDS"))
+}
+```
+
+```{bash}
+#unique spacer 也很重要，代表每个物种的crisprome diversity，代表某种进化保守性，所以也要走流程看看
+cat /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/inter_bac23_random_non_gene|cut -f1-6,21-24 > ~/work/crispr/pc/bac23_net_uniq_spacer
+
+#但这个数据应该也有点问题，因为uniq的主体是所有spacer，所以可能直接把一些在不同物种中都出现的spacer给删掉了
+#实际上应该使用以每一个source species为主体进行uniq的结果
+```
+
+```{r}
+#实际上应该使用以每一个source species为主体进行uniq的结果
+testdat=data.frame(spacer_id=sample(letters,100,T),all_spacer_id=paste0("sp",1:100),source=sample(LETTERS[1:5],100,T))
+group_by(testdat,source)%>%distinct(spacer_id,.keep_all = T)%>%View()
+
+```
+
+
+```{r}
+#uniq部分
+bac_net<-readr::read_delim("bac23_net_uniq_spacer",delim = "\t",col_names = T)
+bac_net=bac_net[,c(5,6,1,9,7,8,10,4,2,3)]
+bac_net=na.omit(bac_net)
+colnames(bac_net)=c("source_genome","CRISPR_id","Spacer_id",
+          "source_kingdom","source_taxid","source_lineage","target_genome",
+          "target_kingdom","target_taxid","target_lineage")
+bac_net$source_lineage%>%stringr::str_extract(.,"s__.*")->bac_net$source_name
+bac_net$target_lineage%>%stringr::str_extract(.,"s__.*")->bac_net$target_name
+saveRDS(bac_net,file = paste0("bac_net_uniq.RDS"))
+"scp -P 10022 -r pengchen@10.73.29.10:~/work/crispr/pc/bac_net_uniq.RDS ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/"
+
+```
+
+
+
+# Phylogenetic
+
+## arc
+```{r}
+arc_net=readRDS("2.Blast_res/1.arc_all_info0816.RDS")
+
+#pd在算比较大的表格时很慢，尽量保存对象
+#arc_count=pd_count(arc_net,file = "2.Blast_res/2.arc_pd_count.RDS")
+
+tmp1=source_target_count(arc_net)
+tmp2=source_target_pd(arc_net)
+tmp3=source_target_gng(arc_net)
+
+arc_count=Reduce(left_join,list(tmp1,tmp2,tmp3))%>%arrange(-spacer_n)
+save(arc_count,file = "2.Blast_res/2.arc_pd_count_origin.RDS")
+
+```
+
+```{r}
+#过滤一下arc的结果
+load("2.Blast_res/2.arc_pd_count_origin.RDS")
+arc_count=na.omit(arc_count)
+arc_count=filter(arc_count,!target_name%in%c("s__unclassified cellular organisms species","s__unclassified root species"))
+save(arc_count,file = "2.Blast_res/2.bac_pd_count.RDS")
+```
+
+
+```{r}
+arc_count=left_join(arc_count,distinct_all(target_tax),by=c("target_name"="target_Species"),suffix = c("", ".y"))
+table(arc_count$target_Kingdom)
+
+kingdom_gene=group_by(arc_count,target_Kingdom)%>%summarise(gene=sum(gene),intergene=sum(intergene))
+kingdom_gene=column_to_rownames(kingdom_gene,"target_Kingdom")
+stackplot(t(kingdom_gene),relative = F,number = T,repel = T)+
+  labs(x=NULL,y="Spacer number")+
+  scale_fill_manual(values = c( "#a6cee3","#78c679"))+mytheme
+```
+
+```{r}
+load("2.Blast_res/2.arc_pd_count.RDS")
+
+pcutils::my_lm(arc_count$spacer_n,arc_count$phy_dis)
+pcutils::my_lm(arc_count$gene_ratio,arc_count$phy_dis)
+
+#不要用太少的
+ggpubr::ggdensity(arc_count$spacer_n)
+
+pu1=gene_pd_lm(arc_count,mode = 1,filter_spacer = 5)
+pu2=gene_pd_lm(arc_count,mode = 2,filter_spacer = 5)
+
+ggsave(filename = "2.Blast_res/2.arc_gene_ratio_phy_dis.pdf",
+       plot=pu1,
+       device = "pdf",
+       width = 5.6,
+       height = 5,
+       dpi = 600)
+
+ggsave(filename = "2.Blast_res/2.arc_gene_ratio_phy_dis2.pdf",
+       plot=pu2,
+       device = "pdf",
+       width = 5.6,
+       height = 5,
+       dpi = 600)
+```
+
+```{r}
+load("2.Blast_res/2.arc_pd_count.RDS")
+
+spacer_pd_lm(arc_count)
+
+pcutils::strsplit2(arc_net$target_lineage,";")%>%distinct()%>%as.data.frame()->target_tax
+colnames(target_tax)=paste0("target_",le[2:8])
+
+spacer_pd_lm(arc_count,mode = 4,target_tax = target_tax)
+
+ggsave(filename = "2.Blast_res/3.arc_spacer_n_phy_dis.pdf",
+       width = 7,
+       height = 6,
+       dpi = 600)
+
+```
+
+
+## bac
+
+```{r}
+#集群
+tmp1=tmp2=tmp3=list()
+for (i in 1:20) {
+  cat("read file:",i,"\n")
+  tmp_bac_net=readRDS(file = paste0("bac_net_",i,".RDS"))
+  cat("source_target_count:",i,"\n")
+  tmp1[[i]]=source_target_count(tmp_bac_net)
+  cat("source_target_pd:",i,"\n")
+  tmp2[[i]]=source_target_pd(tmp_bac_net)
+  # 暂时没有这个数据
+  # cat("source_target_gng:",i,"\n")
+  # tmp3[[i]]=source_target_gng(tmp_bac_net)
+}
+cat("combine \n")
+all_tmp1=do.call(iCRISPR::combine,tmp1)
+all_tmp2=do.call(iCRISPR::combine,tmp2)
+all_tmp3=do.call(iCRISPR::combine,tmp3)
+
+bac_count=Reduce(left_join,list(all_tmp1,all_tmp2,all_tmp3))%>%arrange(-spacer_n)
+save(bac_count,file = "2.bac_pd_count.RDS")
+
+#本机
+"scp -P 10022 -r pengchen@10.73.29.10:~/work/crispr/pc/2.bac_pd_count.RDS ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/"
+"scp -P 10022 ~/Documents/R/iCRISPR_0.1.0.tar.gz pengchen@10.73.29.10:~/work/crispr/"
+
+#uniq
+bac_net_uniq=readRDS(file = "2.Blast_res/bac_net_uniq.RDS")
+
+tmp1=source_target_count(bac_net_uniq)
+
+tmp2=source_target_pd(bac_net_uniq)
+
+bac_count_uniq=Reduce(left_join,list(tmp1,tmp2))%>%arrange(-spacer_n)
+
+```
+
+```{r}
+#收集一下所有的taxid信息
+tmp1=tmp2=list()
+for (i in 1:20) {
+  cat("read file:",i,"\n")
+  tmp_bac_net=readRDS(file = paste0("bac_net_",i,".RDS"))
+  cat("source_target_count:",i,"\n")
+  tmp1[[i]]=distinct(tmp_bac_net,source_taxid,source_lineage)
+  cat("source_target_pd:",i,"\n")
+  tmp2[[i]]=distinct(tmp_bac_net,target_taxid,target_lineage)
+}
+all_tmp1=do.call(rbind,tmp1)%>%distinct_all
+all_tmp2=do.call(rbind,tmp2)%>%distinct_all
+
+pcutils::strsplit2(all_tmp1$source_lineage,";")%>%as.data.frame()->source_tax
+colnames(source_tax)=paste0("source_",le[2:8])
+source_tax=data.frame(all_tmp1[,1,drop=F],source_tax)
+saveRDS(source_tax,file = "source_tax.RDS")
+
+pcutils::strsplit2(all_tmp2$target_lineage,";")%>%as.data.frame()->target_tax
+colnames(target_tax)=paste0("target_",le[2:8])
+target_tax=data.frame(all_tmp2[,1,drop=F],target_tax)
+saveRDS(target_tax,file = "target_tax.RDS")
+"scp -P 10022 -r pengchen@10.73.29.10:~/work/crispr/pc/target_tax.RDS ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/"
+"scp -P 10022 -r pengchen@10.73.29.10:~/work/crispr/pc/source_tax.RDS ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/"
+```
+
+```{r}
+#过滤一下bac的结果
+load("2.Blast_res/2.bac_pd_count_origin.RDS")
+bac_count=na.omit(bac_count)
+bac_count=filter(bac_count,!target_name%in%c("s__unclassified cellular organisms species","s__unclassified root species"))
+save(bac_count,file = "2.Blast_res/2.bac_pd_count.RDS")
+
+```
+
+target到不同kingdom的数量和比例情况
+```{r}
+bac_target_tax=readRDS("2.Blast_res/target_tax.RDS")
+bac_target_tax=distinct_all(bac_target_tax[,-1])
+bac_count=left_join(bac_count,distinct_all(bac_target_tax),by=c("target_name"="target_Species"),suffix = c("", ".y"))
+table(bac_count$target_Kingdom)
+
+tmp=bac_count%>%group_by(target_Kingdom)%>%summarise(spacer_n=sum(spacer_n))
+
+ggpubr::ggbarplot(tmp,"target_Kingdom","spacer_n",fill = "#78c679",label = T)+scale_y_log10()
+
+ggsave("2.Blast_res/1.bac_target_kingdom.pdf",height = 5)
+```
+
+
+```{r}
+load("2.Blast_res/2.bac_pd_count.RDS")
+#不要用太少的
+ggpubr::ggdensity(bac_count$spacer_n)
+
+pu1=gene_pd_lm(bac_count,mode = 1,filter_spacer = 5)
+pu2=gene_pd_lm(bac_count,mode = 2,filter_spacer = 5)
+
+ggsave(filename = "2.Blast_res/2.bac_gene_ratio_phy_dis.pdf",
+       plot=pu1,
+       device = "pdf",
+       width = 5.6,
+       height = 5,
+       dpi = 600)
+
+ggsave(filename = "2.Blast_res/2.bac_gene_ratio_phy_dis2.pdf",
+       plot=pu2,
+       device = "pdf",
+       width = 5.6,
+       height = 5,
+       dpi = 600)
+```
+
+
+```{r}
+load("2.Blast_res/2.bac_pd_count.RDS")
+
+sanxian(bac_count,fig = T,nrow = 20)
+
+spacer_pd_lm(bac_count,filter_spacer = 5)
+
+spacer_pd_lm(bac_count,mode = 4,filter_spacer = 5,target_tax = bac_target_tax)
+ggsave(filename = "2.Blast_res/3.bac_spacer_n_phy_dis.pdf",
+       width = 8.5,
+       height = 6,
+       dpi = 600)
+
+spacer_pd_lm(bac_count[-1,],mode = 3,filter_spacer = 5,target_tax = bac_target_tax)
+
+ggsave(filename = "2.Blast_res/3.bac_spacer_n_phy_dis2.pdf",
+       width = 8.5,
+       height = 6,
+       dpi = 600)
+
+spacer_pd_lm(bac_count%>%filter(source_name=="s__Salmonella enterica"),
+             mode = 2,filter_spacer = 5,target_tax = bac_target_tax)
+spacer_pd_lm(bac_count%>%filter(source_name=="s__Escherichia coli"),
+             mode = 2,filter_spacer = 5,target_tax = bac_target_tax)
+```
+

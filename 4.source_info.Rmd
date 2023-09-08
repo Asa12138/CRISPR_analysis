@@ -1,0 +1,263 @@
+---
+title: "4.source_info"
+author:
+  - Liu Zhen
+date: Wed Sep  6 00:05:37 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/liuzhen/Documents/GitHub/CRISPR_analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = FALSE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+#source("./R_config.R")
+packages_to_load <- c("pcutils", "iCRISPR","dplyr","reshape2","ggsci","ggpubr","RColorBrewer","cowplot","patchwork","readr","tibble","vegan","ggrepel")
+# 检查并安装缺失的包
+for (package in packages_to_load) {
+  if (!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+}
+# 加载包
+lapply(packages_to_load, library, character.only = TRUE)
+
+#color
+kin_col=c(k__Bacteria="#a6bce3",k__Fungi="#fdbf6f",k__Metazoa="#fb9a99",k__Viridiplantae="#a9d483",
+          k__Archaea="#1f78b4",k__Eukaryota_others="#8dd3c7",k__Viruses="#bda7c9")
+crispr_target_domain=c("Archaea"="#E9967A","Viruses"="#483D8B","Bacteria"="#698B69","Fungi"="#CD9B1D","Protozoa"="#B2DFEE")
+
+output="4.source_info/"
+```
+# species with the most spacers
+## arc
+```{bash}
+#login01
+cd /data/home/jianglab/share/seqid2taxid_23/output
+cut -f1,2,5 arc23_total_spacer_source > arc23_spacer_lineage_taxid_simple
+
+#local
+cd /Users/liuzhen/Documents/GitHub/data/arc23
+scp liuzhen@10.73.29.10:/data/home/jianglab/share/seqid2taxid_23/output/arc23_spacer_lineage_taxid_simple .
+```
+
+```{r}
+arc_source2<-readr::read_delim("../data/arc23/arc23_spacer_lineage_taxid_simple",delim = "\t")
+colnames(arc_source2)%>%copy_vector()
+
+#所有列名
+c("spacer_id","source_genome","spacer_lineage")
+
+
+#去除部分NA
+arc_source2=na.omit(arc_source2)
+
+
+arc_net=dplyr::distinct(arc_net,Spacer_id,.keep_all = TRUE)
+arc_net=na.omit(arc_net)
+
+arc_source2$spacer_lineage%>%stringr::str_extract(.,"s__.*")->arc_source2$source_name
+
+distinct(arc_source2,source_genome,source_name)%>%count(source_name)%>%arrange(-n)%>%head(10)->tmp
+  
+ggbarplot(tmp,"source_name","n",label = T,fill = "#E9967A")+coord_flip()
+```
+
+
+
+
+
+
+##bac
+```{bash}
+#login01
+cd /data/home/jianglab/share/seqid2taxid_23/output
+cut -f1,2,5 bac23_spacer_lineage_taxid > bac23_spacer_lineage_taxid_simple
+
+#local
+cd /Users/liuzhen/Documents/GitHub/lz_crispr/data/bac23
+scp liuzhen@10.73.29.10:/data/home/jianglab/share/seqid2taxid_23/output/bac23_spacer_lineage_taxid_simple .
+
+
+saveRDS(arc_net,file = "2.Blast_res/1.arc_all_info0816_lz.RDS")
+
+```
+
+# top 10 species with the most spacers
+## arc
+```{bash}
+#login01
+head /data/home/jianglab/share/seqid2taxid_23/refgen23_abfp_genomes_species
+#genome_name  taxid species_name
+GCA_000002825.3_ASM282v3_genomic.fna	412133	s__Trichomonas vaginalis
+GCA_000002835.1_ASM283v1_genomic.fna	5802	s__Eimeria tenella
+GCA_000003085.2_ASM308v2_genomic.fna	73239	s__Plasmodium yoelii
+GCA_000006155.2_ASM615v2_genomic.fna	191218	s__Bacillus anthracis
+
+#input arc data
+
+indir=/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/archaea/
+ls -1 -f $indir|grep .gz > /data/home/jianglab/share/seqid2taxid_23/total_arc_list
+cd /data/home/jianglab/share/seqid2taxid_23/
+sed -i 's/.gz//g' total_arc_list
+awk '{print $0"\t""Archaea"}' total_arc_list > 2total_arc_list
+mv 2total_arc_list total_arc_list
+
+#input bac data 
+indir=/data/home/jianglab/share/crisprfinder
+awk '{print $0"\t""Bacteria"}' $indir/totallist > 2total_bac_list
+mv 2total_bac_list total_bac_list
+
+cat total_arc_list total_bac_list > arc_bac_input_genome
+sort -t $'\t' arc_bac_input_genome -k 1,1 -o arc_bac_input_genome
+sort -t $'\t' refgen23_abfp_genomes_species -k 1,1 -o refgen23_abfp_genomes_species
+join -t $'\t' refgen23_abfp_genomes_species arc_bac_input_genome > input_ab_genome_spe
+awk -v FS="\t" -v OFS="\t" '$3 != ""' input_ab_genome_spe > 2input_ab_genome_spe
+mv 2input_ab_genome_spe input_ab_genome_spe
+
+
+GCA_000006155.2_ASM615v2_genomic.fna	191218	s__Bacillus anthracis	Bacteria
+GCA_000007325.1_ASM732v1_genomic.fna	190304	s__Fusobacterium nucleatum	Bacteria
+GCA_000007385.1_ASM738v1_genomic.fna	291331	s__Xanthomonas oryzae	Bacteria
+GCA_000008085.1_ASM808v1_genomic.fna	228908	s__Nanoarchaeum equitans	Archaea
+GCA_000008525.1_ASM852v1_genomic.fna	85962	s__Helicobacter pylori	Bacteria
+
+#genomes with crispr (with level4 spacers)
+
+#arc
+cd /data/home/jianglab/share/arc_ccfinder
+cut -f1 genome_CRISPR_spacer_query|sort|uniq > 2genome_CRISPR_spacer_query
+
+#bac
+cd /data/home/jianglab/share/bac_ccfinder_merge
+cut -f1 genome_CRISPR_spacer_query|sort|uniq > 2genome_CRISPR_spacer_query
+
+cd /data/home/jianglab/share/seqid2taxid_23/
+
+cat /data/home/jianglab/share/arc_ccfinder/2genome_CRISPR_spacer_query \
+/data/home/jianglab/share/bac_ccfinder_merge/2genome_CRISPR_spacer_query > arc_bac_genome_level4_cri
+
+sort -t $'\t' arc_bac_genome_level4_cri -k 1,1 -o arc_bac_genome_level4_cri
+sort -t $'\t' input_ab_genome_spe -k 1,1 -o input_ab_genome_spe
+join -t $'\t' arc_bac_genome_level4_cri input_ab_genome_spe > input_ab_genome_spe_have_crispr
+
+#genomes without cirspr
+comm -2 -3 input_ab_genome_spe input_ab_genome_spe_have_crispr > input_ab_genome_spe_no_crispr
+
+awk '{print $0"\tcrispr_true"}' input_ab_genome_spe_have_crispr > 2input_ab_genome_spe_have_crispr
+mv 2input_ab_genome_spe_have_crispr input_ab_genome_spe_have_crispr
+awk '{print $0"\tcrispr_false"}' input_ab_genome_spe_no_crispr > 2input_ab_genome_spe_no_crispr
+mv 2input_ab_genome_spe_no_crispr input_ab_genome_spe_no_crispr
+
+cat input_ab_genome_spe_no_crispr input_ab_genome_spe_have_crispr > input_genome_crispr_or_not
+rm input_ab_genome_spe_have_crispr input_ab_genome_spe_no_crispr
+
+head input_genome_crispr_or_not
+
+awk -v FS="\t" -v OFS="\t" '{gsub("s__", "", $3)}1' input_genome_crispr_or_not > 2input_genome_crispr_or_not
+mv 2input_genome_crispr_or_not input_genome_crispr_or_not 
+
+#local
+cd /Users/liuzhen/Documents/GitHub/lz_crispr/data/arc23
+scp liuzhen@10.73.29.10:/data/home/jianglab/share/seqid2taxid_23/input_genome_crispr_or_not .
+
+# header:
+# genome_id   taxid   species_name    kingdom   crispr_or_not
+
+GCA_000006155.2_ASM615v2_genomic.fna	191218	Bacillus anthracis	Bacteria	crispr_false
+GCA_000008525.1_ASM852v1_genomic.fna	85962	Helicobacter pylori	Bacteria	crispr_false
+GCA_000008885.1_ASM888v1_genomic.fna	36870	Wigglesworthia glossinidia	Bacteria	crispr_false
+GCA_000009845.1_ASM984v1_genomic.fna	262768	Onion yellows phytoplasma	Bacteria	crispr_false
+
+
+```
+
+```{r}
+library(readr)
+arc_bac_table <- readr::read_delim("/Users/liuzhen/Documents/GitHub/lz_crispr/data/arc23/input_genome_crispr_or_not",delim = "\t",col_names = F)
+head(arc_bac_table)
+colnames(arc_bac_table)<-c("genome_id","taxid","species_name","kingdom","crispr_or_not")
+colnames(arc_bac_table)
+head(arc_bac_table)
+library(dplyr)
+# 使用group_by和summarize来计算每个类别的数量
+result1 <- arc_bac_table %>%
+  group_by(crispr_or_not, kingdom, species_name) %>%
+  summarize(genome_count = n_distinct(genome_id))
+
+# 查看结果
+print(result1)
+
+# top10 
+top10=group_by(result1,kingdom,species_name)%>%summarise(genome_count=sum(genome_count))
+top10=group_by(top10,kingdom)%>%top_n(10,genome_count)
+
+result2=filter(result1,species_name%in%top10$species_name)
+
+print(result2)
+
+# top 10 species with crispr
+
+result3 <- result1%>%filter(crispr_or_not == "crispr_true")
+result3
+
+top10_2=group_by(result3,kingdom,species_name)%>%summarise(genome_count=sum(genome_count))
+top10_2=group_by(top10_2,kingdom)%>%top_n(10,genome_count)
+
+result4=filter(result3,species_name%in%top10_2$species_name)
+
+print(result4)
+
+
+```
+
+
+
+```{r}
+library(ggplot2)
+library(reshape2)
+
+
+p1 <- ggplot(result2, aes(x = reorder(species_name, genome_count), 
+                          y = genome_count, group = crispr_or_not, fill = crispr_or_not)) +
+  geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) +
+  coord_flip() +
+  ylab("genome counts") +
+  xlab("species") +
+  #scale_fill_discrete(
+  #  name = "color",
+    #labels = c("genomes with CRISPR array", "genomes without CRISPR array")
+  #) +
+  facet_wrap(~kingdom, scales = "free") +
+  theme(axis.text.x = element_text(size = 18),     # 修改x轴标签字体大小为12
+        axis.text.y = element_text(size = 16),     # 修改y轴标签字体大小为12
+        axis.title.x = element_text(size = 24),    # 修改x轴标题字体大小为14
+        axis.title.y = element_text(size = 24),    # 修改y轴标题字体大小为14
+        legend.text = element_text(size = 14))     # 修改图例标签字体大小为10
+
+p1
+
+
+```
+
