@@ -1704,3 +1704,6 @@ python find_up_down.py -i intergenic_$i -o target_up_down_$i -l log_$i
 cat target_up_down_* >target_up_down
 join -a1 spacer2target target_up_down >all_spacer_up_down
 ```
+
+测试github
+
