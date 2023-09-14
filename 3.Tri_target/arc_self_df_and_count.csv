@@ -1,0 +1,701 @@
+"Level","Source","Spacer_count","T_self","T_virus","T_others","T_self_r","T_virus_r","T_others_r","genome_count"
+"Species","s__Thermoplasmata archaeon",399,170,18,211,0.4261,0.0451,0.5288,94
+"Species","s__Methanosarcina mazei",4233,2657,1445,131,0.6277,0.3414,0.0309,71
+"Species","s__Thermoplasmatales archaeon",1431,489,202,740,0.3417,0.1412,0.5171,57
+"Species","s__Sulfolobus acidocaldarius",7290,7200,13,77,0.9877,0.0018,0.0105,55
+"Species","s__Thermococcus sp.",359,170,3,186,0.4735,0.0084,0.5181,42
+"Species","s__Desulfurococcales archaeon",229,56,4,169,0.2445,0.0175,0.738,39
+"Species","s__Candidatus Micrarchaeota archaeon",124,42,6,76,0.3387,0.0484,0.6129,30
+"Species","s__archaeon",165,25,5,135,0.1515,0.0303,0.8182,30
+"Species","s__uncultured Methanobrevibacter sp.",228,32,157,39,0.1404,0.6886,0.171,27
+"Species","s__Archaeoglobaceae archaeon",99,40,9,50,0.404,0.0909,0.5051,24
+"Species","s__Methanobrevibacter smithii",341,38,276,27,0.1114,0.8094,0.0792,22
+"Species","s__Sulfolobus islandicus",140,29,90,21,0.2071,0.6429,0.15,22
+"Species","s__Acidilobaceae archaeon",132,46,2,84,0.3485,0.0152,0.6363,21
+"Species","s__Candidatus Heimdallarchaeota archaeon",53,47,0,6,0.8868,0,0.1132,21
+"Species","s__Thermoprotei archaeon",85,16,1,68,0.1882,0.0118,0.8,19
+"Species","s__Euryarchaeota archaeon",104,3,60,41,0.0288,0.5769,0.3943,18
+"Species","s__Methanothrix sp.",198,22,147,29,0.1111,0.7424,0.1465,18
+"Species","s__Candidatus Bathyarchaeota archaeon",171,14,112,45,0.0819,0.655,0.2631,17
+"Species","s__DHVE2 group archaeon",53,29,0,24,0.5472,0,0.4528,15
+"Species","s__Candidatus Aenigmarchaeota archaeon",63,10,18,35,0.1587,0.2857,0.5556,14
+"Species","s__Candidatus Woesearchaeota archaeon",75,4,40,31,0.0533,0.5333,0.4134,14
+"Species","s__Nitrososphaerota archaeon",113,70,4,39,0.6195,0.0354,0.3451,14
+"Species","s__Pyrodictiaceae archaeon",69,49,1,19,0.7101,0.0145,0.2754,14
+"Species","s__Saccharolobus solfataricus",1567,1241,267,59,0.792,0.1704,0.0376,14
+"Species","s__Candidatus Thermoplasmatota archaeon",42,2,13,27,0.0476,0.3095,0.6429,13
+"Species","s__Methanoculleus sp.",132,5,98,29,0.0379,0.7424,0.2197,13
+"Species","s__Ferroplasma sp.",31,16,0,15,0.5161,0,0.4839,12
+"Species","s__Methanothrix harundinacea",132,7,110,15,0.053,0.8333,0.1137,12
+"Species","s__Candidatus Terraquivivens tengchongensis",37,37,0,0,1,0,0,11
+"Species","s__Candidatus Geocrenenecus dongiae",18,18,0,0,1,0,0,10
+"Species","s__Candidatus Methanoperedens sp.",28,6,0,22,0.2143,0,0.7857,10
+"Species","s__Metallosphaera sedula",628,381,112,135,0.6067,0.1783,0.215,10
+"Species","s__Nitrososphaeria archaeon",59,4,0,55,0.0678,0,0.9322,10
+"Species","s__uncultured Methanosarcinales archaeon",129,125,4,0,0.969,0.031,0,10
+"Species","s__DPANN group archaeon",25,18,0,7,0.72,0,0.28,9
+"Species","s__Halobacterium hubeiense",108,29,36,43,0.2685,0.3333,0.3982,8
+"Species","s__Methanococcus maripaludis",46,20,26,0,0.4348,0.5652,0,8
+"Species","s__Thermoproteota archaeon",31,7,6,18,0.2258,0.1935,0.5807,8
+"Species","s__uncultured Methanomicrobiales archaeon",24,24,0,0,1,0,0,8
+"Species","s__Candidatus Mancarchaeum sp.",66,13,0,53,0.197,0,0.803,7
+"Species","s__Candidatus Parvarchaeota archaeon",56,14,0,42,0.25,0,0.75,7
+"Species","s__Haloferax volcanii",38,0,8,30,0,0.2105,0.7895,7
+"Species","s__uncultured Methanomassiliicoccales archaeon",308,2,75,231,0.0065,0.2435,0.75,7
+"Species","s__Candidatus Korarchaeota archaeon",38,4,11,23,0.1053,0.2895,0.6052,6
+"Species","s__Ferroplasma acidiphilum",108,2,0,106,0.0185,0,0.9815,6
+"Species","s__Methanobacteriaceae archaeon",51,5,33,13,0.098,0.6471,0.2549,6
+"Species","s__Methanosarcina barkeri",43,8,14,21,0.186,0.3256,0.4884,6
+"Species","s__Methanosarcinales archaeon",82,6,62,14,0.0732,0.7561,0.1707,6
+"Species","s__Sulfolobales archaeon",104,89,3,12,0.8558,0.0288,0.1154,6
+"Species","s__Candidatus Diapherotrites archaeon",18,15,0,3,0.8333,0,0.1667,5
+"Species","s__Candidatus Lokiarchaeota archaeon",20,12,5,3,0.6,0.25,0.15,5
+"Species","s__Methanobacterium formicicum",76,6,54,16,0.0789,0.7105,0.2106,5
+"Species","s__Methanomicrobiales archaeon",87,0,80,7,0,0.9195,0.0805,5
+"Species","s__Methanophagales archaeon",11,3,3,5,0.2727,0.2727,0.4546,5
+"Species","s__Pyrobaculum aerophilum",42,4,0,38,0.0952,0,0.9048,5
+"Species","s__Thermofilum sp.",28,27,0,1,0.9643,0,0.0357,5
+"Species","s__Thermoproteales archaeon",77,2,0,75,0.026,0,0.974,5
+"Species","s__uncultured Nitrososphaerota archaeon",43,0,28,15,0,0.6512,0.3488,5
+"Species","s__Archaeoglobi archaeon",21,5,15,1,0.2381,0.7143,0.0476,4
+"Species","s__Candidatus Altiarchaeum sp.",6,3,0,3,0.5,0,0.5,4
+"Species","s__Candidatus Geocrenenecus huangii",17,17,0,0,1,0,0,4
+"Species","s__Candidatus Hydrothermarchaeota archaeon",6,0,0,6,0,0,1,4
+"Species","s__Candidatus Methanomassiliicoccus intestinalis",26,6,20,0,0.2308,0.7692,0,4
+"Species","s__Candidatus Methanomethylophilaceae archaeon",5,1,0,4,0.2,0,0.8,4
+"Species","s__Candidatus Methanomethylophilus alvus",25,3,0,22,0.12,0,0.88,4
+"Species","s__Candidatus Pacearchaeota archaeon",38,0,36,2,0,0.9474,0.0526,4
+"Species","s__Candidatus Verstraetearchaeota archaeon",21,2,1,18,0.0952,0.0476,0.8572,4
+"Species","s__Desulfurococcaceae archaeon",10,10,0,0,1,0,0,4
+"Species","s__Haloferax mediterranei",8,0,0,8,0,0,1,4
+"Species","s__Halomicrobium mukohataei",9,0,0,9,0,0,1,4
+"Species","s__Methanobacterium sp.",27,1,16,10,0.037,0.5926,0.3704,4
+"Species","s__Methanobrevibacter oralis",146,145,0,1,0.9932,0,0.0068,4
+"Species","s__Methanocaldococcus sp.",28,5,9,14,0.1786,0.3214,0.5,4
+"Species","s__Methanococcus voltae",20,20,0,0,1,0,0,4
+"Species","s__Methanoculleus bourgensis",84,0,73,11,0,0.869,0.131,4
+"Species","s__Methanohalophilus euhalobius",79,0,75,4,0,0.9494,0.0506,4
+"Species","s__Methanomicrobiaceae archaeon",19,3,14,2,0.1579,0.7368,0.1053,4
+"Species","s__Methanosarcina thermophila",142,6,131,5,0.0423,0.9225,0.0352,4
+"Species","s__Nanoarchaeota archaeon",13,1,1,11,0.0769,0.0769,0.8462,4
+"Species","s__Saccharolobus shibatae",13,6,4,3,0.4615,0.3077,0.2308,4
+"Species","s__Thermococci archaeon",8,0,6,2,0,0.75,0.25,4
+"Species","s__Aciduliprofundum sp.",3,1,0,2,0.3333,0,0.6667,3
+"Species","s__Archaeoglobus fulgidus",41,31,10,0,0.7561,0.2439,0,3
+"Species","s__Candidatus Culexarchaeum yellowstonense",16,10,5,1,0.625,0.3125,0.0625,3
+"Species","s__Candidatus Marsarchaeota archaeon",19,6,0,13,0.3158,0,0.6842,3
+"Species","s__Candidatus Methanospirare jalkutatii",19,0,0,19,0,0,1,3
+"Species","s__Ferroplasmaceae archaeon",39,0,0,39,0,0,1,3
+"Species","s__Haloferax alexandrinus",40,3,4,33,0.075,0.1,0.825,3
+"Species","s__Halorubrum ezzemoulense",6,4,2,0,0.6667,0.3333,0,3
+"Species","s__Halorubrum lacusprofundi",62,0,49,13,0,0.7903,0.2097,3
+"Species","s__Methanobrevibacter boviskoreani",21,0,10,11,0,0.4762,0.5238,3
+"Species","s__Methanobrevibacter ruminantium",6,2,1,3,0.3333,0.1667,0.5,3
+"Species","s__Methanobrevibacter woesei",6,5,0,1,0.8333,0,0.1667,3
+"Species","s__Methanocaldococcaceae archaeon",11,5,4,2,0.4545,0.3636,0.1819,3
+"Species","s__Methanohalophilus portucalensis",13,10,3,0,0.7692,0.2308,0,3
+"Species","s__Methanoregula sp.",6,0,6,0,0,1,0,3
+"Species","s__Methanosphaera stadtmanae",45,0,15,30,0,0.3333,0.6667,3
+"Species","s__Methanothrix soehngenii",17,0,13,4,0,0.7647,0.2353,3
+"Species","s__Natrinema thermotolerans",12,4,7,1,0.3333,0.5833,0.0834,3
+"Species","s__Natronobacterium gregoryi",369,363,0,6,0.9837,0,0.0163,3
+"Species","s__Pyrobaculum arsenaticum",41,9,0,32,0.2195,0,0.7805,3
+"Species","s__Sulfuracidifex tepidarius",9,7,0,2,0.7778,0,0.2222,3
+"Species","s__Thermococcaceae archaeon",19,5,2,12,0.2632,0.1053,0.6315,3
+"Species","s__Thermococcus thioreducens",10,7,0,3,0.7,0,0.3,3
+"Species","s__Thermofilaceae archaeon",88,71,0,17,0.8068,0,0.1932,3
+"Species","s__Thermoplasmataceae archaeon",4,0,0,4,0,0,1,3
+"Species","s__uncultured Methanosphaera sp.",17,0,7,10,0,0.4118,0.5882,3
+"Species","s__Acidianus ambivalens",4,2,0,2,0.5,0,0.5,2
+"Species","s__Acidianus hospitalis",20,0,12,8,0,0.6,0.4,2
+"Species","s__Acidianus infernus",11,3,8,0,0.2727,0.7273,0,2
+"Species","s__Acidiplasma aeolicum",26,2,0,24,0.0769,0,0.9231,2
+"Species","s__Acidiplasma cupricumulans",4,0,0,4,0,0,1,2
+"Species","s__Acidiplasma sp.",6,4,0,2,0.6667,0,0.3333,2
+"Species","s__Aeropyrum camini",2,0,2,0,0,1,0,2
+"Species","s__Aeropyrum pernix",5,1,4,0,0.2,0.8,0,2
+"Species","s__Archaeoglobales archaeon",7,5,1,1,0.7143,0.1429,0.1428,2
+"Species","s__Candidatus Korarchaeum cryptofilum",19,19,0,0,1,0,0,2
+"Species","s__Candidatus Methanofastidiosum methylthiophilus",5,0,5,0,0,1,0,2
+"Species","s__Candidatus Methanofastidiosum sp.",5,0,5,0,0,1,0,2
+"Species","s__Candidatus Methanoperedenaceae archaeon",3,0,0,3,0,0,1,2
+"Species","s__Candidatus Methanoperedenaceae archaeon GB37",10,0,3,7,0,0.3,0.7,2
+"Species","s__Candidatus Methanoperedenaceae archaeon GB50",17,0,8,9,0,0.4706,0.5294,2
+"Species","s__Candidatus Methanoxibalbensis ujae",7,7,0,0,1,0,0,2
+"Species","s__Candidatus Nezhaarchaeota archaeon",12,12,0,0,1,0,0,2
+"Species","s__Candidatus Nitrosocaldus schleperae",2,2,0,0,1,0,0,2
+"Species","s__Candidatus Nitrosocaldus sp.",6,6,0,0,1,0,0,2
+"Species","s__Candidatus Nitrosothermus koennekii",2,2,0,0,1,0,0,2
+"Species","s__Candidatus Sysuiplasma jiujiangense",4,0,0,4,0,0,1,2
+"Species","s__Candidatus Terraquivivens ruidianensis",8,8,0,0,1,0,0,2
+"Species","s__Candidatus Wolframiiraptor sinensis",2,2,0,0,1,0,0,2
+"Species","s__Cuniculiplasma divulgatum",20,0,3,17,0,0.15,0.85,2
+"Species","s__Hadesarchaea archaeon",14,0,13,1,0,0.9286,0.0714,2
+"Species","s__Haladaptatus paucihalophilus",24,24,0,0,1,0,0,2
+"Species","s__Halarchaeum acidiphilum",15,12,1,2,0.8,0.0667,0.1333,2
+"Species","s__Halarchaeum rubridurum",4,2,2,0,0.5,0.5,0,2
+"Species","s__Haloarcula hispanica",4,0,0,4,0,0,1,2
+"Species","s__Haloarcula sinaiiensis",6,0,4,2,0,0.6667,0.3333,2
+"Species","s__Halobiforma lacisalsi",2,0,0,2,0,0,1,2
+"Species","s__Haloferax larsenii",4,3,0,1,0.75,0,0.25,2
+"Species","s__Haloferax massiliensis",16,0,12,4,0,0.75,0.25,2
+"Species","s__Haloferax prahovense",19,0,18,1,0,0.9474,0.0526,2
+"Species","s__Halogeometricum borinquense",6,3,1,2,0.5,0.1667,0.3333,2
+"Species","s__Halohasta litchfieldiae",62,4,54,4,0.0645,0.871,0.0645,2
+"Species","s__Metallosphaera prunae",73,0,1,72,0,0.0137,0.9863,2
+"Species","s__Methanobacterium subterraneum",4,0,3,1,0,0.75,0.25,2
+"Species","s__Methanobacterium veterum",6,0,6,0,0,1,0,2
+"Species","s__Methanobrevibacter arboriphilus",4,1,3,0,0.25,0.75,0,2
+"Species","s__Methanobrevibacter millerae",6,0,6,0,0,1,0,2
+"Species","s__Methanobrevibacter olleyae",19,1,18,0,0.0526,0.9474,0,2
+"Species","s__Methanobrevibacter sp.",8,0,2,6,0,0.25,0.75,2
+"Species","s__Methanocaldococcus lauensis",26,3,8,15,0.1154,0.3077,0.5769,2
+"Species","s__Methanococcaceae archaeon",3,1,0,2,0.3333,0,0.6667,2
+"Species","s__Methanoculleus chikugoensis",32,6,21,5,0.1875,0.6562,0.1563,2
+"Species","s__Methanoculleus thermophilus",14,0,9,5,0,0.6429,0.3571,2
+"Species","s__Methanohalophilus sp.",30,0,28,2,0,0.9333,0.0667,2
+"Species","s__Methanomethylovorans sp.",4,4,0,0,1,0,0,2
+"Species","s__Methanosarcina flavescens",71,4,65,2,0.0563,0.9155,0.0282,2
+"Species","s__Methanosarcina sp.",3,0,3,0,0,1,0,2
+"Species","s__Methanospirillum hungatei",18,0,14,4,0,0.7778,0.2222,2
+"Species","s__Methanospirillum sp.",28,1,26,1,0.0357,0.9286,0.0357,2
+"Species","s__Methanothermobacter marburgensis",10,0,10,0,0,1,0,2
+"Species","s__Methanothermobacter sp.",18,0,15,3,0,0.8333,0.1667,2
+"Species","s__Methanothermobacter wolfeii",30,0,29,1,0,0.9667,0.0333,2
+"Species","s__Methanothermococcus thermolithotrophicus",23,20,0,3,0.8696,0,0.1304,2
+"Species","s__Methanotrichaceae archaeon",2,0,1,1,0,0.5,0.5,2
+"Species","s__Nitrososphaeraceae archaeon",2,2,0,0,1,0,0,2
+"Species","s__Pyrococcus horikoshii",2,2,0,0,1,0,0,2
+"Species","s__Sulfuracidifex metallicus",2,2,0,0,1,0,0,2
+"Species","s__Sulfurisphaera ohwakuensis",34,0,0,34,0,0,1,2
+"Species","s__Sulfurisphaera tokodaii",13,0,5,8,0,0.3846,0.6154,2
+"Species","s__Thermococcus litoralis",30,0,21,9,0,0.7,0.3,2
+"Species","s__Thermococcus paralvinellae",2,1,0,1,0.5,0,0.5,2
+"Species","s__Thermococcus peptonophilus",10,0,0,10,0,0,1,2
+"Species","s__Thermoplasmatales archaeon E-plasma",15,1,0,14,0.0667,0,0.9333,2
+"Species","s__Thermoplasmatales archaeon I-plasma",4,0,0,4,0,0,1,2
+"Species","s__haloarchaeon 3A1-DGR",12,0,2,10,0,0.1667,0.8333,2
+"Species","s__uncultured Methanobacterium sp.",67,1,0,66,0.0149,0,0.9851,2
+"Species","s__uncultured Thermoplasmata archaeon",10,0,0,10,0,0,1,2
+"Species","s__ANME-2 cluster archaeon",1,0,0,1,0,0,1,1
+"Species","s__Acidianus brierleyi",22,0,8,14,0,0.3636,0.6364,1
+"Species","s__Acidianus manzaensis",2,0,0,2,0,0,1,1
+"Species","s__Acidianus sp. HS-5",1,0,0,1,0,0,1,1
+"Species","s__Acidiplasma sp. MBA-1",7,0,0,7,0,0,1,1
+"Species","s__Aciduliprofundum sp. JdFR-45",1,0,0,1,0,0,1,1
+"Species","s__Aigarchaeota archaeon JGI 0000001-B8",1,0,1,0,0,1,0,1
+"Species","s__Aigarchaeota archaeon SCGC AAA471-A16",2,0,0,2,0,0,1,1
+"Species","s__Aigarchaeota archaeon SCGC AAA471-E16",6,0,2,4,0,0.3333,0.6667,1
+"Species","s__Aigarchaeota archaeon SCGC AAA471-F17",5,0,1,4,0,0.2,0.8,1
+"Species","s__Aigarchaeota archaeon SCGC AAA471-G05",2,0,2,0,0,1,0,1
+"Species","s__Aigarchaeota archaeon SCGC AAA471-I13",4,0,0,4,0,0,1,1
+"Species","s__Aigarchaeota archaeon SCGC AAA471-J07",3,0,0,3,0,0,1,1
+"Species","s__Archaeoglobales archaeon ex4484_92",3,0,0,3,0,0,1,1
+"Species","s__Archaeoglobus sp. JdFR-27",1,0,0,1,0,0,1,1
+"Species","s__Archaeoglobus sp. JdFR-29",4,0,3,1,0,0.75,0.25,1
+"Species","s__Archaeoglobus sp. JdFR-30",1,0,0,1,0,0,1,1
+"Species","s__Archaeoglobus sp. JdFR-31",11,1,6,4,0.0909,0.5455,0.3636,1
+"Species","s__Archaeoglobus sp. JdFR-33",21,0,10,11,0,0.4762,0.5238,1
+"Species","s__Archaeoglobus sp. JdFR-35",2,0,2,0,0,1,0,1
+"Species","s__Archaeoglobus sp. JdFR-36",11,0,8,3,0,0.7273,0.2727,1
+"Species","s__Archaeoglobus sp. JdFR-37",5,0,3,2,0,0.6,0.4,1
+"Species","s__Archaeoglobus sp. JdFR-39",7,0,6,1,0,0.8571,0.1429,1
+"Species","s__Archaeoglobus sp. UBA230",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Archaeoglobus sp. UBA231",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Archaeoglobus sp. UBA234",4,0,3,1,0,0.75,0.25,1
+"Species","s__Caldivirga sp.",2,0,1,1,0,0.5,0.5,1
+"Species","s__Caldivirga sp. CIS_19",2,0,2,0,0,1,0,1
+"Species","s__Caldivirga sp. JCHS_4",1,0,1,0,0,1,0,1
+"Species","s__Caldivirga sp. MU80",1,0,1,0,0,1,0,1
+"Species","s__Candidatus Acidianus copahuensis",1,0,0,1,0,0,1,1
+"Species","s__Candidatus Altiarchaeales archaeon HGW-Altiarchaeales-2",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Altiarchaeales archaeon WOR_SM1_79",1,1,0,0,1,0,0,1
+"Species","s__Candidatus Altiarchaeum sp. HURL_250",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Aramenus sulfurataquae",5,5,0,0,1,0,0,1
+"Species","s__Candidatus Bathyarchaeota archaeon JdFR-06",1,0,1,0,0,1,0,1
+"Species","s__Candidatus Benthortus lauensis",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Culexmicrobium cathedralense",3,0,0,3,0,0,1,1
+"Species","s__Candidatus Geocrenenecus arthurdayi",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Geothermarchaeota archaeon",3,1,0,2,0.3333,0,0.6667,1
+"Species","s__Candidatus Hadarchaeum yellowstonense",2,0,1,1,0,0.5,0.5,1
+"Species","s__Candidatus Heimdallarchaeota archaeon PR6",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Huberarchaeum crystalense",1,0,0,1,0,0,1,1
+"Species","s__Candidatus Marsarchaeota G1 archaeon OSP_D",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Marsarchaeota G2 archaeon ECH_B_2",12,0,0,12,0,0,1,1
+"Species","s__Candidatus Methanoculleus thermohydrogenotrophicum",13,0,8,5,0,0.6154,0.3846,1
+"Species","s__Candidatus Methanodesulfokores washburnensis",84,41,8,35,0.4881,0.0952,0.4167,1
+"Species","s__Candidatus Methanofastidiosa archaeon",1,0,1,0,0,1,0,1
+"Species","s__Candidatus Methanomethylicia archaeon",3,2,0,1,0.6667,0,0.3333,1
+"Species","s__Candidatus Methanoperedenaceae archaeon HGW-Methanoperedenaceae-1",5,0,0,5,0,0,1,1
+"Species","s__Candidatus Methanoperedens nitroreducens",6,0,0,6,0,0,1,1
+"Species","s__Candidatus Methanoperedens sp. BLZ2",6,0,0,6,0,0,1,1
+"Species","s__Candidatus Micrarchaeota archaeon CG1_02_49_24",1,0,0,1,0,0,1,1
+"Species","s__Candidatus Micrarchaeota archaeon CG1_02_60_51",10,0,9,1,0,0.9,0.1,1
+"Species","s__Candidatus Micrarchaeum sp. ARMAN-1",3,0,0,3,0,0,1,1
+"Species","s__Candidatus Nanohaloarchaeota archaeon",8,0,0,8,0,0,1,1
+"Species","s__Candidatus Nitrosocaldaceae archaeon",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Odinarchaeota archaeon",1,0,0,1,0,0,1,1
+"Species","s__Candidatus Pacearchaeota archaeon CG_4_9_14_0_2_um_filter_39_13",4,0,0,4,0,0,1,1
+"Species","s__Candidatus Syntrophoarchaeum caldarius",1,0,0,1,0,0,1,1
+"Species","s__Candidatus Syntrophoarchaeum sp.",2,0,0,2,0,0,1,1
+"Species","s__Candidatus Termiticorpusculum sp.",2,2,0,0,1,0,0,1
+"Species","s__Candidatus Terraquivivens yellowstonensis",1,0,1,0,0,1,0,1
+"Species","s__Candidatus Thorarchaeota archaeon",20,1,13,6,0.05,0.65,0.3,1
+"Species","s__Candidatus Woesearchaeota archaeon CG10_big_fil_rev_8_21_14_0_10_37_12",1,1,0,0,1,0,0,1
+"Species","s__Candidatus Wolframiiraptor sp.",2,0,2,0,0,1,0,1
+"Species","s__Cenarchaeum sp.",2,1,0,1,0.5,0,0.5,1
+"Species","s__Crenarchaeota archaeon SCGC AAA471-C03",4,0,0,4,0,0,1,1
+"Species","s__Crenarchaeota archaeon SCGC AAA471-L14",1,0,0,1,0,0,1,1
+"Species","s__Cuniculiplasma sp. C_DKE",2,0,0,2,0,0,1,1
+"Species","s__Desulfurococcaceae archaeon AG1",1,0,0,1,0,0,1,1
+"Species","s__Desulfurococcales archaeon ex4484_217_2",3,0,0,3,0,0,1,1
+"Species","s__Desulfurococcus amylolyticus",1,1,0,0,1,0,0,1
+"Species","s__Euryarchaeota archaeon 55_53",1,0,1,0,0,1,0,1
+"Species","s__Euryarchaeota archaeon ADurb.Bin023",5,0,5,0,0,1,0,1
+"Species","s__Euryarchaeota archaeon ADurb.Bin165",2,0,0,2,0,0,1,1
+"Species","s__Euryarchaeota archaeon ADurb.Bin294",2,0,0,2,0,0,1,1
+"Species","s__Ferroglobus placidus",1,0,0,1,0,0,1,1
+"Species","s__Ferroplasma acidarmanus",5,0,0,5,0,0,1,1
+"Species","s__Fervidicoccaceae archaeon",1,1,0,0,1,0,0,1
+"Species","s__Fervidicoccus fontis",1,0,0,1,0,0,1,1
+"Species","s__Geoglobus ahangari",1,0,0,1,0,0,1,1
+"Species","s__Geoglobus sp. UBA235",7,0,0,7,0,0,1,1
+"Species","s__Halalkalicoccus subterraneus",1,0,1,0,0,1,0,1
+"Species","s__Halapricum desulfuricans",1,0,0,1,0,0,1,1
+"Species","s__Halarchaeum grantii",1,0,1,0,0,1,0,1
+"Species","s__Halarchaeum nitratireducens",1,0,0,1,0,0,1,1
+"Species","s__Halegenticoccus tardaugens",1,0,0,1,0,0,1,1
+"Species","s__Haloarcula amylolytica",22,0,22,0,0,1,0,1
+"Species","s__Haloarcula argentinensis",2,0,1,1,0,0.5,0.5,1
+"Species","s__Haloarcula californiae",1,0,1,0,0,1,0,1
+"Species","s__Haloarcula marismortui",2,0,2,0,0,1,0,1
+"Species","s__Haloarcula quadrata",6,0,5,1,0,0.8333,0.1667,1
+"Species","s__Haloarcula sp. Atlit-47R",6,0,4,2,0,0.6667,0.3333,1
+"Species","s__Haloarcula sp. Atlit-7R",18,6,2,10,0.3333,0.1111,0.5556,1
+"Species","s__Haloarcula sp. CBA1115",2,0,2,0,0,1,0,1
+"Species","s__Haloarcula sp. CBA1122",1,0,1,0,0,1,0,1
+"Species","s__Haloarcula sp. CBA1128",2,0,2,0,0,1,0,1
+"Species","s__Haloarcula sp. JP-L23",1,0,1,0,0,1,0,1
+"Species","s__Haloarcula sp. JP-Z28",7,0,5,2,0,0.7143,0.2857,1
+"Species","s__Haloarcula sp. K1",3,0,3,0,0,1,0,1
+"Species","s__Halobacteria archaeon AArc-m2/3/4",1,0,0,1,0,0,1,1
+"Species","s__Halobacteriaceae archaeon YIM 93972",1,0,0,1,0,0,1,1
+"Species","s__Halobacteriales archaeon QH_7_65_31",4,0,3,1,0,0.75,0.25,1
+"Species","s__Halobacteriales archaeon QH_7_66_36",24,4,12,8,0.1667,0.5,0.3333,1
+"Species","s__Halobacteriales archaeon QS_1_69_70",1,0,1,0,0,1,0,1
+"Species","s__Halobacteriales archaeon QS_4_66_20",1,0,1,0,0,1,0,1
+"Species","s__Halobacteriales archaeon QS_4_69_31",1,0,1,0,0,1,0,1
+"Species","s__Halobacteriales archaeon QS_6_64_34",1,0,1,0,0,1,0,1
+"Species","s__Halobacteriales archaeon QS_6_71_20",3,1,1,1,0.3333,0.3333,0.3334,1
+"Species","s__Halobacteriales archaeon QS_9_67_17",1,0,0,1,0,0,1,1
+"Species","s__Halobacteriales archaeon SW_10_66_29",2,0,0,2,0,0,1,1
+"Species","s__Halobacteriales archaeon SW_6_65_46",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Halobacteriales archaeon SW_8_65_20",4,0,4,0,0,1,0,1
+"Species","s__Halobacteriales archaeon SW_8_68_21",5,0,4,1,0,0.8,0.2,1
+"Species","s__Halobacteriales archaeon YIM A00012",9,0,0,9,0,0,1,1
+"Species","s__Halobacteriales archaeon YIM A00013",3,1,0,2,0.3333,0,0.6667,1
+"Species","s__Halobacteriales archaeon YIM A00014",6,0,0,6,0,0,1,1
+"Species","s__Halobacterium noricense",6,0,3,3,0,0.5,0.5,1
+"Species","s__Halobacterium salinarum",4,3,1,0,0.75,0.25,0,1
+"Species","s__Halobacterium sp. DL1",19,0,16,3,0,0.8421,0.1579,1
+"Species","s__Halobacterium sp. GSL-19",2,0,0,2,0,0,1,1
+"Species","s__Halobaculum halophilum",1,0,0,1,0,0,1,1
+"Species","s__Halobaculum magnesiiphilum",1,0,0,1,0,0,1,1
+"Species","s__Halobellus captivus",6,1,1,4,0.1667,0.1667,0.6666,1
+"Species","s__Halobellus inordinatus",2,0,0,2,0,0,1,1
+"Species","s__Halocalculus aciditolerans",1,1,0,0,1,0,0,1
+"Species","s__Halocatena salina",9,0,0,9,0,0,1,1
+"Species","s__Halocatena sp. DFN5",4,4,0,0,1,0,0,1
+"Species","s__Halococcus dombrowskii",1,0,0,1,0,0,1,1
+"Species","s__Halococcus thailandensis",1,1,0,0,1,0,0,1
+"Species","s__Haloferacaceae archaeon KCTC 4243",1,0,0,1,0,0,1,1
+"Species","s__Haloferax denitrificans",1,1,0,0,1,0,0,1
+"Species","s__Haloferax elongans",2,2,0,0,1,0,0,1
+"Species","s__Haloferax gibbonsii",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Haloferax lucentense",9,0,0,9,0,0,1,1
+"Species","s__Haloferax mucosum",1,1,0,0,1,0,0,1
+"Species","s__Haloferax sp. AS1",2,0,0,2,0,0,1,1
+"Species","s__Haloferax sp. ATB1",1,0,0,1,0,0,1,1
+"Species","s__Haloferax sp. ATCC BAA-644",7,0,1,6,0,0.1429,0.8571,1
+"Species","s__Haloferax sp. ATCC BAA-645",8,0,1,7,0,0.125,0.875,1
+"Species","s__Haloferax sp. ATCC BAA-646",8,0,1,7,0,0.125,0.875,1
+"Species","s__Haloferax sp. Atlit-105R",5,0,0,5,0,0,1,1
+"Species","s__Haloferax sp. Atlit-109R",5,0,0,5,0,0,1,1
+"Species","s__Haloferax sp. Atlit-10N",9,0,7,2,0,0.7778,0.2222,1
+"Species","s__Haloferax sp. Atlit-16N",9,0,7,2,0,0.7778,0.2222,1
+"Species","s__Haloferax sp. Atlit-19N",12,0,8,4,0,0.6667,0.3333,1
+"Species","s__Haloferax sp. Atlit-24N",5,0,0,5,0,0,1,1
+"Species","s__Haloferax sp. Atlit-47N",5,0,0,5,0,0,1,1
+"Species","s__Haloferax sp. Atlit-48N",5,0,0,5,0,0,1,1
+"Species","s__Haloferax sp. Atlit-6N",3,0,0,3,0,0,1,1
+"Species","s__Haloferax sp. KTX1",2,0,0,2,0,0,1,1
+"Species","s__Haloferax sulfurifontis",10,0,1,9,0,0.1,0.9,1
+"Species","s__Haloglomus irregulare",1,0,1,0,0,1,0,1
+"Species","s__Haloglomus sp. ZY58",1,0,0,1,0,0,1,1
+"Species","s__Halolamina salifodinae",5,0,4,1,0,0.8,0.2,1
+"Species","s__Halomarina sp. BND7",1,0,0,1,0,0,1,1
+"Species","s__Halomicroarcula rubra",2,1,0,1,0.5,0,0.5,1
+"Species","s__Halomicroarcula salinisoli",1,0,1,0,0,1,0,1
+"Species","s__Halomicrobium katesii",2,0,0,2,0,0,1,1
+"Species","s__Halomicrobium sp. IBSBa",1,0,0,1,0,0,1,1
+"Species","s__Halomicrobium sp. LC1Hm",3,1,0,2,0.3333,0,0.6667,1
+"Species","s__Halomicrobium sp. ZPS1",1,0,0,1,0,0,1,1
+"Species","s__Haloparvum sedimenti",1,1,0,0,1,0,0,1
+"Species","s__Halopenitus persicus",1,0,1,0,0,1,0,1
+"Species","s__Halopiger salifodinae",5,5,0,0,1,0,0,1
+"Species","s__Haloplanus sp. XH21",1,0,0,1,0,0,1,1
+"Species","s__Haloquadratum walsbyi",3,3,0,0,1,0,0,1
+"Species","s__Halorientalis brevis",1,0,0,1,0,0,1,1
+"Species","s__Halorubrum alkaliphilum",1,0,0,1,0,0,1,1
+"Species","s__Halorubrum amylolyticum",6,0,2,4,0,0.3333,0.6667,1
+"Species","s__Halorubrum californiense",2,0,2,0,0,1,0,1
+"Species","s__Halorubrum halophilum",2,0,1,1,0,0.5,0.5,1
+"Species","s__Halorubrum saccharovorum",3,1,1,1,0.3333,0.3333,0.3334,1
+"Species","s__Halorubrum sp. Atlit-26R",6,0,4,2,0,0.6667,0.3333,1
+"Species","s__Halorubrum sp. CGM5_25_10-8B",4,0,3,1,0,0.75,0.25,1
+"Species","s__Halorubrum sp. CSM-61",2,0,0,2,0,0,1,1
+"Species","s__Halorubrum sp. E3",2,0,2,0,0,1,0,1
+"Species","s__Halorubrum sp. GN11GM_10-3_MGM",2,0,2,0,0,1,0,1
+"Species","s__Halorubrum sp. SD690R",2,0,0,2,0,0,1,1
+"Species","s__Halorubrum sp. SP9",6,0,0,6,0,0,1,1
+"Species","s__Halorubrum tropicale",1,0,0,1,0,0,1,1
+"Species","s__Halorussus pelagicus",1,0,0,1,0,0,1,1
+"Species","s__Halorussus sp. YCN54",1,0,0,1,0,0,1,1
+"Species","s__Halosegnis longus",1,0,0,1,0,0,1,1
+"Species","s__Halostella pelagica",2,2,0,0,1,0,0,1
+"Species","s__Halostella salina",1,0,1,0,0,1,0,1
+"Species","s__Haloterrigena saccharevitans",1,0,0,1,0,0,1,1
+"Species","s__Ignicoccus hospitalis",5,0,0,5,0,0,1,1
+"Species","s__Ignisphaera sp.",1,0,0,1,0,0,1,1
+"Species","s__Metallosphaera hakonensis",6,2,0,4,0.3333,0,0.6667,1
+"Species","s__Metallosphaera yellowstonensis",17,0,10,7,0,0.5882,0.4118,1
+"Species","s__Methanobacteriaceae archaeon UBA117",1,0,1,0,0,1,0,1
+"Species","s__Methanobacteriales archaeon",40,1,33,6,0.025,0.825,0.15,1
+"Species","s__Methanobacteriales archaeon HGW-Methanobacteriales-2",3,0,0,3,0,0,1,1
+"Species","s__Methanobacterium paludis",2,2,0,0,1,0,0,1
+"Species","s__Methanobacterium sp. BAmetb5",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Methanobacterium sp. BRmetb2",2,0,2,0,0,1,0,1
+"Species","s__Methanobacterium sp. DP",4,0,2,2,0,0.5,0.5,1
+"Species","s__Methanobacterium sp. MB1",2,0,2,0,0,1,0,1
+"Species","s__Methanobacterium sp. MZ-A1",3,0,1,2,0,0.3333,0.6667,1
+"Species","s__Methanobacterium sp. UBA176",2,0,0,2,0,0,1,1
+"Species","s__Methanobacterium sp. UBA290",98,0,5,93,0,0.051,0.949,1
+"Species","s__Methanobacterium sp. UBA295",27,0,4,23,0,0.1481,0.8519,1
+"Species","s__Methanobacterium sp. UBA299",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA302",4,0,1,3,0,0.25,0.75,1
+"Species","s__Methanobacterium sp. UBA310",8,0,0,8,0,0,1,1
+"Species","s__Methanobacterium sp. UBA311",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA316",88,0,3,85,0,0.0341,0.9659,1
+"Species","s__Methanobacterium sp. UBA324",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA327",11,0,3,8,0,0.2727,0.7273,1
+"Species","s__Methanobacterium sp. UBA336",15,0,1,14,0,0.0667,0.9333,1
+"Species","s__Methanobacterium sp. UBA350",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA351",16,0,3,13,0,0.1875,0.8125,1
+"Species","s__Methanobacterium sp. UBA357",12,0,3,9,0,0.25,0.75,1
+"Species","s__Methanobacterium sp. UBA373",7,0,1,6,0,0.1429,0.8571,1
+"Species","s__Methanobacterium sp. UBA375",5,0,5,0,0,1,0,1
+"Species","s__Methanobacterium sp. UBA379",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA384",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA385",1,0,1,0,0,1,0,1
+"Species","s__Methanobacterium sp. UBA390",3,0,0,3,0,0,1,1
+"Species","s__Methanobacterium sp. UBA405",92,0,3,89,0,0.0326,0.9674,1
+"Species","s__Methanobacterium sp. UBA410",10,0,0,10,0,0,1,1
+"Species","s__Methanobacterium sp. UBA418",14,1,1,12,0.0714,0.0714,0.8572,1
+"Species","s__Methanobacterium sp. UBA419",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA42",5,0,0,5,0,0,1,1
+"Species","s__Methanobacterium sp. UBA426",21,0,4,17,0,0.1905,0.8095,1
+"Species","s__Methanobacterium sp. UBA428",5,0,0,5,0,0,1,1
+"Species","s__Methanobrevibacter sp. 87.7",6,6,0,0,1,0,0,1
+"Species","s__Methanobrevibacter sp. A54",20,0,18,2,0,0.9,0.1,1
+"Species","s__Methanobrevibacter sp. AbM4",15,0,9,6,0,0.6,0.4,1
+"Species","s__Methanobrevibacter sp. UBA187",5,0,5,0,0,1,0,1
+"Species","s__Methanobrevibacter sp. UBA313",5,0,4,1,0,0.8,0.2,1
+"Species","s__Methanobrevibacter sp. UBA337",1,0,1,0,0,1,0,1
+"Species","s__Methanobrevibacter sp. UBA412",6,0,4,2,0,0.6667,0.3333,1
+"Species","s__Methanobrevibacter sp. UBA417",10,0,6,4,0,0.6,0.4,1
+"Species","s__Methanobrevibacter sp. UBA594",3,0,1,2,0,0.3333,0.6667,1
+"Species","s__Methanocalculus sp. 52_23",4,0,4,0,0,1,0,1
+"Species","s__Methanocaldococcus jannaschii",10,6,0,4,0.6,0,0.4,1
+"Species","s__Methanocaldococcus vulcanius",2,0,0,2,0,0,1,1
+"Species","s__Methanocellaceae archaeon UBA148",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanococcaceae archaeon UBA115",3,0,0,3,0,0,1,1
+"Species","s__Methanococci archaeon",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanococcoides sp. EBM-47",2,0,0,2,0,0,1,1
+"Species","s__Methanococcus aeolicus",12,10,1,1,0.8333,0.0833,0.0834,1
+"Species","s__Methanococcus vannielii",5,0,1,4,0,0.2,0.8,1
+"Species","s__Methanocorpusculaceae archaeon UBA425",6,0,5,1,0,0.8333,0.1667,1
+"Species","s__Methanocorpusculaceae archaeon UBA456",1,0,0,1,0,0,1,1
+"Species","s__Methanocorpusculum parvum",2,0,2,0,0,1,0,1
+"Species","s__Methanocorpusculum sp.",5,0,0,5,0,0,1,1
+"Species","s__Methanocorpusculum sp. CW153",5,0,0,5,0,0,1,1
+"Species","s__Methanocorpusculum sp. GPch4",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanocorpusculum sp. UBA362",6,0,6,0,0,1,0,1
+"Species","s__Methanocorpusculum sp. UBA424",8,0,8,0,0,1,0,1
+"Species","s__Methanoculleus marisnigri",4,1,2,1,0.25,0.5,0.25,1
+"Species","s__Methanoculleus sp. 10",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanoculleus sp. 7T",11,0,9,2,0,0.8182,0.1818,1
+"Species","s__Methanoculleus sp. Afa-1",26,0,24,2,0,0.9231,0.0769,1
+"Species","s__Methanoculleus sp. DTU007",10,0,5,5,0,0.5,0.5,1
+"Species","s__Methanoculleus sp. EBM-46",15,0,9,6,0,0.6,0.4,1
+"Species","s__Methanoculleus sp. MH98A",32,1,27,4,0.0312,0.8438,0.125,1
+"Species","s__Methanoculleus sp. UBA291",238,0,41,197,0,0.1723,0.8277,1
+"Species","s__Methanoculleus sp. UBA303",5,0,5,0,0,1,0,1
+"Species","s__Methanoculleus sp. UBA307",44,0,6,38,0,0.1364,0.8636,1
+"Species","s__Methanoculleus sp. UBA312",27,0,17,10,0,0.6296,0.3704,1
+"Species","s__Methanoculleus sp. UBA320",6,0,0,6,0,0,1,1
+"Species","s__Methanoculleus sp. UBA326",21,0,16,5,0,0.7619,0.2381,1
+"Species","s__Methanoculleus sp. UBA331",33,0,10,23,0,0.303,0.697,1
+"Species","s__Methanoculleus sp. UBA334",64,0,31,33,0,0.4844,0.5156,1
+"Species","s__Methanoculleus sp. UBA340",28,0,13,15,0,0.4643,0.5357,1
+"Species","s__Methanoculleus sp. UBA374",79,0,38,41,0,0.481,0.519,1
+"Species","s__Methanoculleus sp. UBA377",30,0,9,21,0,0.3,0.7,1
+"Species","s__Methanoculleus sp. UBA389",24,0,7,17,0,0.2917,0.7083,1
+"Species","s__Methanoculleus sp. UBA413",6,0,5,1,0,0.8333,0.1667,1
+"Species","s__Methanoculleus sp. UBA416",78,0,38,40,0,0.4872,0.5128,1
+"Species","s__Methanoculleus sp. UBA430",12,0,9,3,0,0.75,0.25,1
+"Species","s__Methanoculleus sp. UBA45",31,1,19,11,0.0323,0.6129,0.3548,1
+"Species","s__Methanofollis aquaemaris",1,0,1,0,0,1,0,1
+"Species","s__Methanofollis ethanolicus",9,0,7,2,0,0.7778,0.2222,1
+"Species","s__Methanofollis liminatans",1,0,0,1,0,0,1,1
+"Species","s__Methanofollis sp. W23",7,7,0,0,1,0,0,1
+"Species","s__Methanofollis tationis",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanogenium sp. MK-MG",1,1,0,0,1,0,0,1
+"Species","s__Methanohalophilus sp. 2-GBenrich",21,0,20,1,0,0.9524,0.0476,1
+"Species","s__Methanohalophilus sp. DAL1",12,1,9,2,0.0833,0.75,0.1667,1
+"Species","s__Methanohalophilus sp. T328-1",5,0,3,2,0,0.6,0.4,1
+"Species","s__Methanohalophilus sp. WG1-DM",14,0,13,1,0,0.9286,0.0714,1
+"Species","s__Methanolacinia paynteri",2,0,0,2,0,0,1,1
+"Species","s__Methanolinea sp. UBA155",4,0,3,1,0,0.75,0.25,1
+"Species","s__Methanolinea sp. UBA245",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanolinea sp. UBA275",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanolinea sp. UBA437",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanolinea sp. UBA451",1,0,0,1,0,0,1,1
+"Species","s__Methanolobus bombayensis",2,0,2,0,0,1,0,1
+"Species","s__Methanolobus sp. T82-4",1,0,1,0,0,1,0,1
+"Species","s__Methanolobus vulcani",1,0,0,1,0,0,1,1
+"Species","s__Methanolobus zinderi",8,0,8,0,0,1,0,1
+"Species","s__Methanomassiliicoccaceae archaeon DOK",1,0,0,1,0,0,1,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA296",3,0,0,3,0,0,1,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA328",1,0,0,1,0,0,1,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA344",7,0,5,2,0,0.7143,0.2857,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA366",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA371",3,0,0,3,0,0,1,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA408",1,0,1,0,0,1,0,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA593",1,1,0,0,1,0,0,1
+"Species","s__Methanomassiliicoccaceae archaeon UBA75",2,0,0,2,0,0,1,1
+"Species","s__Methanomassiliicoccales archaeon",144,17,115,12,0.1181,0.7986,0.0833,1
+"Species","s__Methanomassiliicoccus sp. UBA393",3,0,0,3,0,0,1,1
+"Species","s__Methanomassiliicoccus sp. UBA429",4,0,0,4,0,0,1,1
+"Species","s__Methanomethylovorans sp. PtaU1.Bin093",1,0,1,0,0,1,0,1
+"Species","s__Methanomicrobia archaeon LH_S14",5,0,0,5,0,0,1,1
+"Species","s__Methanomicrobia archaeon LH_S43",1,0,0,1,0,0,1,1
+"Species","s__Methanomicrobiales archaeon 53_19",27,0,25,2,0,0.9259,0.0741,1
+"Species","s__Methanomicrobiales archaeon HGW-Methanomicrobiales-3",3,0,3,0,0,1,0,1
+"Species","s__Methanomicrobiales archaeon HGW-Methanomicrobiales-6",23,0,20,3,0,0.8696,0.1304,1
+"Species","s__Methanomicrobiales archaeon Methan_05",5,0,5,0,0,1,0,1
+"Species","s__Methanomicrobiales archaeon Methan_06",1,0,0,1,0,0,1,1
+"Species","s__Methanomicrobiales archaeon Methan_07",7,0,6,1,0,0.8571,0.1429,1
+"Species","s__Methanonatronarchaeia archaeon",1,0,0,1,0,0,1,1
+"Species","s__Methanonatronarchaeum sp. AMET6-2",2,0,0,2,0,0,1,1
+"Species","s__Methanoregula sp. PtaU1.Bin051",1,0,1,0,0,1,0,1
+"Species","s__Methanoregulaceae archaeon",1,0,1,0,0,1,0,1
+"Species","s__Methanoregulaceae archaeon UXB-2016",1,1,0,0,1,0,0,1
+"Species","s__Methanosaeta sp. PtaB.Bin018",6,0,5,1,0,0.8333,0.1667,1
+"Species","s__Methanosaeta sp. PtaB.Bin087",1,0,0,1,0,0,1,1
+"Species","s__Methanosaeta sp. PtaU1.Bin112",1,1,0,0,1,0,0,1
+"Species","s__Methanosaeta sp. UBA356",15,0,8,7,0,0.5333,0.4667,1
+"Species","s__Methanosaeta sp. UBA372",1,0,1,0,0,1,0,1
+"Species","s__Methanosaeta sp. UBA70",12,0,6,6,0,0.5,0.5,1
+"Species","s__Methanosalsum natronophilum",3,0,0,3,0,0,1,1
+"Species","s__Methanosarcina horonobensis",9,9,0,0,1,0,0,1
+"Species","s__Methanosarcina lacustris",5,0,1,4,0,0.2,0.8,1
+"Species","s__Methanosarcina soligelidi",59,0,13,46,0,0.2203,0.7797,1
+"Species","s__Methanosarcina sp. 1.H.A.2.2",1,0,0,1,0,0,1,1
+"Species","s__Methanosarcina sp. 1.H.T.1A.1",1,0,1,0,0,1,0,1
+"Species","s__Methanosarcina sp. 2.H.A.1B.4",3,0,3,0,0,1,0,1
+"Species","s__Methanosarcina sp. 2.H.T.1A.15",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanosarcina sp. 2.H.T.1A.3",2,1,1,0,0.5,0.5,0,1
+"Species","s__Methanosarcina sp. 2.H.T.1A.6",6,0,1,5,0,0.1667,0.8333,1
+"Species","s__Methanosarcina sp. 2.H.T.1A.8",6,0,1,5,0,0.1667,0.8333,1
+"Species","s__Methanosarcina sp. 795",50,0,47,3,0,0.94,0.06,1
+"Species","s__Methanosarcina sp. A14",7,0,2,5,0,0.2857,0.7143,1
+"Species","s__Methanosarcina sp. DH1",4,0,0,4,0,0,1,1
+"Species","s__Methanosarcina sp. DTU009",2,0,0,2,0,0,1,1
+"Species","s__Methanosarcina sp. ERenArc_MAG2",1,1,0,0,1,0,0,1
+"Species","s__Methanosarcina sp. Kolksee",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Methanosarcina sp. MSH10X1",1,0,1,0,0,1,0,1
+"Species","s__Methanosarcina sp. UBA289",2,0,0,2,0,0,1,1
+"Species","s__Methanosarcina sp. UBA293",23,0,19,4,0,0.8261,0.1739,1
+"Species","s__Methanosarcina sp. UBA301",13,0,10,3,0,0.7692,0.2308,1
+"Species","s__Methanosarcina sp. UBA304",8,0,4,4,0,0.5,0.5,1
+"Species","s__Methanosarcina sp. UBA342",18,0,14,4,0,0.7778,0.2222,1
+"Species","s__Methanosarcina sp. UBA363",4,0,0,4,0,0,1,1
+"Species","s__Methanosarcina sp. UBA369",18,0,14,4,0,0.7778,0.2222,1
+"Species","s__Methanosarcina sp. UBA376",5,0,3,2,0,0.6,0.4,1
+"Species","s__Methanosarcina sp. UBA383",16,0,15,1,0,0.9375,0.0625,1
+"Species","s__Methanosarcina sp. UBA392",39,0,31,8,0,0.7949,0.2051,1
+"Species","s__Methanosarcina sp. UBA398",31,0,25,6,0,0.8065,0.1935,1
+"Species","s__Methanosarcina sp. UBA402",1,0,1,0,0,1,0,1
+"Species","s__Methanosarcina sp. UBA411",2,0,0,2,0,0,1,1
+"Species","s__Methanosarcina sp. UBA423",11,0,10,1,0,0.9091,0.0909,1
+"Species","s__Methanosarcina sp. UBA43",18,0,14,4,0,0.7778,0.2222,1
+"Species","s__Methanosarcina sp. WH1",2,0,1,1,0,0.5,0.5,1
+"Species","s__Methanosarcina sp. WWM596",1,0,1,0,0,1,0,1
+"Species","s__Methanosarcina vacuolata",5,0,1,4,0,0.2,0.8,1
+"Species","s__Methanosarcinales archaeon Methan_01",12,0,11,1,0,0.9167,0.0833,1
+"Species","s__Methanosarcinales archaeon Methan_03",5,0,0,5,0,0,1,1
+"Species","s__Methanosphaera cuniculi",4,3,1,0,0.75,0.25,0,1
+"Species","s__Methanosphaera sp.",4,0,0,4,0,0,1,1
+"Species","s__Methanosphaera sp. A6",9,1,4,4,0.1111,0.4444,0.4445,1
+"Species","s__Methanosphaera sp. BMS",4,0,0,4,0,0,1,1
+"Species","s__Methanosphaera sp. DEW79",4,0,0,4,0,0,1,1
+"Species","s__Methanospirillum sp. J.3.6.1-F.2.7.3",6,0,5,1,0,0.8333,0.1667,1
+"Species","s__Methanothermobacter defluvii",10,0,8,2,0,0.8,0.2,1
+"Species","s__Methanothermobacter sp. CaT2",14,0,9,5,0,0.6429,0.3571,1
+"Species","s__Methanothermobacter sp. EMTCatA1",11,0,10,1,0,0.9091,0.0909,1
+"Species","s__Methanothermobacter sp. K4",3,0,3,0,0,1,0,1
+"Species","s__Methanothermobacter sp. KEPCO-1",30,0,22,8,0,0.7333,0.2667,1
+"Species","s__Methanothermobacter sp. MT-2",42,0,37,5,0,0.881,0.119,1
+"Species","s__Methanothermobacter sp. THM-1",34,0,33,1,0,0.9706,0.0294,1
+"Species","s__Methanothermobacter sp. THM-2",17,0,13,4,0,0.7647,0.2353,1
+"Species","s__Methanothermobacter tenebrarum",12,0,12,0,0,1,0,1
+"Species","s__Methanothermobacter thermautotrophicus",5,0,3,2,0,0.6,0.4,1
+"Species","s__Methanothermococcus sp. JdFR-03",8,0,0,8,0,0,1,1
+"Species","s__Methanothermococcus sp. SCGC AD-155-C09",3,0,0,3,0,0,1,1
+"Species","s__Methanothermococcus sp. SCGC AD-155-M21",1,0,0,1,0,0,1,1
+"Species","s__Methanothrix thermoacetophila",3,0,3,0,0,1,0,1
+"Species","s__Methanotorris igneus",1,0,1,0,0,1,0,1
+"Species","s__Methermicoccus shengliensis",2,1,0,1,0.5,0,0.5,1
+"Species","s__Natrarchaeobius chitinivorans",2,0,0,2,0,0,1,1
+"Species","s__Natrialba chahannaoensis",3,2,1,0,0.6667,0.3333,0,1
+"Species","s__Natrialba hulunbeirensis",8,1,0,7,0.125,0,0.875,1
+"Species","s__Natrialbaceae archaeon",1,0,1,0,0,1,0,1
+"Species","s__Natribaculum longum",2,0,0,2,0,0,1,1
+"Species","s__Natrinema gari",6,0,2,4,0,0.3333,0.6667,1
+"Species","s__Natrinema pallidum",1,1,0,0,1,0,0,1
+"Species","s__Natronobiforma cellulositropha",3,2,0,1,0.6667,0,0.3333,1
+"Species","s__Natronocalculus amylovorans",3,0,1,2,0,0.3333,0.6667,1
+"Species","s__Natronorubrum sulfidifaciens",1,0,1,0,0,1,0,1
+"Species","s__Nitrosopumilaceae archaeon",1,0,1,0,0,1,0,1
+"Species","s__Nitrosopumilus sp. LS_AOA",1,0,0,1,0,0,1,1
+"Species","s__Nitrososphaera sp.",1,0,0,1,0,0,1,1
+"Species","s__Pyrobaculum calidifontis",4,0,0,4,0,0,1,1
+"Species","s__Pyrobaculum ferrireducens",2,0,0,2,0,0,1,1
+"Species","s__Pyrobaculum sp. OCT_11",1,0,1,0,0,1,0,1
+"Species","s__Pyrococcus abyssi",1,0,0,1,0,0,1,1
+"Species","s__Pyrodictium delaneyi",2,2,0,0,1,0,0,1
+"Species","s__Pyrodictium sp.",4,0,0,4,0,0,1,1
+"Species","s__Pyrolobus sp.",2,0,0,2,0,0,1,1
+"Species","s__Sala cibi",1,0,0,1,0,0,1,1
+"Species","s__Salinadaptatus halalkaliphilus",1,0,0,1,0,0,1,1
+"Species","s__Salinarchaeum sp. IM2453",3,0,0,3,0,0,1,1
+"Species","s__Salinibaculum litoreum",1,0,0,1,0,0,1,1
+"Species","s__Stygiolobus caldivivus",2,0,0,2,0,0,1,1
+"Species","s__Stygiolobus sp.",4,0,2,2,0,0.5,0.5,1
+"Species","s__Sulfolobaceae archaeon",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Sulfolobales archaeon Acd1",3,0,1,2,0,0.3333,0.6667,1
+"Species","s__Sulfolobales archaeon SCGC AB-777_K09",4,0,0,4,0,0,1,1
+"Species","s__Sulfolobales archaeon SCGC AB-777_K20",1,0,1,0,0,1,0,1
+"Species","s__Sulfolobus sp. A20",6,0,0,6,0,0,1,1
+"Species","s__Sulfolobus sp. A20-N-F6",6,0,0,6,0,0,1,1
+"Species","s__Sulfolobus sp. A20-N-F8",6,1,0,5,0.1667,0,0.8333,1
+"Species","s__Sulfolobus sp. A20-N-G8",7,0,0,7,0,0,1,1
+"Species","s__Sulfolobus sp. B1",7,0,0,7,0,0,1,1
+"Species","s__Sulfolobus sp. B5",5,1,0,4,0.2,0,0.8,1
+"Species","s__Sulfolobus sp. C3",5,0,0,5,0,0,1,1
+"Species","s__Sulfolobus sp. D5",6,0,0,6,0,0,1,1
+"Species","s__Sulfolobus sp. E1",7,0,0,7,0,0,1,1
+"Species","s__Sulfolobus sp. E3",5,0,0,5,0,0,1,1
+"Species","s__Sulfolobus sp. E5",4,0,0,4,0,0,1,1
+"Species","s__Sulfolobus sp. E5-1-F",1,0,0,1,0,0,1,1
+"Species","s__Sulfolobus sp. F1",7,0,0,7,0,0,1,1
+"Species","s__Sulfolobus sp. F3",5,0,0,5,0,0,1,1
+"Species","s__Sulfolobus sp. S-194",5,0,2,3,0,0.4,0.6,1
+"Species","s__Sulfolobus sp. SCGC AB-777_G06",4,0,1,3,0,0.25,0.75,1
+"Species","s__Sulfolobus sp. SCGC AB-777_L09",16,0,9,7,0,0.5625,0.4375,1
+"Species","s__Thaumarchaeota archaeon JGI OTU-1",2,0,0,2,0,0,1,1
+"Species","s__Thaumarchaeota archaeon JGI OTU-4",2,0,0,2,0,0,1,1
+"Species","s__Thermocladium sp. ECH_B",21,0,21,0,0,1,0,1
+"Species","s__Thermococcales archaeon 44_46",1,0,1,0,0,1,0,1
+"Species","s__Thermococcus aggregans",2,0,1,1,0,0.5,0.5,1
+"Species","s__Thermococcus alcaliphilus",2,2,0,0,1,0,0,1
+"Species","s__Thermococcus barophilus",5,2,0,3,0.4,0,0.6,1
+"Species","s__Thermococcus bergensis",5,0,4,1,0,0.8,0.2,1
+"Species","s__Thermococcus camini",4,0,0,4,0,0,1,1
+"Species","s__Thermococcus chitonophagus",3,2,0,1,0.6667,0,0.3333,1
+"Species","s__Thermococcus cleftensis",5,0,0,5,0,0,1,1
+"Species","s__Thermococcus eurythermalis",15,0,7,8,0,0.4667,0.5333,1
+"Species","s__Thermococcus gammatolerans",2,0,0,2,0,0,1,1
+"Species","s__Thermococcus henrietii",8,0,7,1,0,0.875,0.125,1
+"Species","s__Thermococcus indicus",2,0,0,2,0,0,1,1
+"Species","s__Thermococcus kodakarensis",2,0,0,2,0,0,1,1
+"Species","s__Thermococcus nautili",6,0,0,6,0,0,1,1
+"Species","s__Thermococcus onnurineus",4,0,0,4,0,0,1,1
+"Species","s__Thermococcus piezophilus",1,0,0,1,0,0,1,1
+"Species","s__Thermococcus siculi",1,0,0,1,0,0,1,1
+"Species","s__Thermococcus sp. 101 C5",3,0,2,1,0,0.6667,0.3333,1
+"Species","s__Thermococcus sp. 18S1",4,0,0,4,0,0,1,1
+"Species","s__Thermococcus sp. 21S7",6,0,0,6,0,0,1,1
+"Species","s__Thermococcus sp. 21S9",10,3,2,5,0.3,0.2,0.5,1
+"Species","s__Thermococcus sp. 2319x1",2,0,0,2,0,0,1,1
+"Species","s__Thermococcus sp. 4557",1,0,0,1,0,0,1,1
+"Species","s__Thermococcus sp. 9N3",1,0,0,1,0,0,1,1
+"Species","s__Thermococcus sp. CX2",2,2,0,0,1,0,0,1
+"Species","s__Thermococcus sp. ES12",3,0,0,3,0,0,1,1
+"Species","s__Thermococcus sp. GR4",12,3,0,9,0.25,0,0.75,1
+"Species","s__Thermococcus sp. GR5",13,0,0,13,0,0,1,1
+"Species","s__Thermococcus sp. GR7",8,0,0,8,0,0,1,1
+"Species","s__Thermococcus sp. JCM 11816",1,0,0,1,0,0,1,1
+"Species","s__Thermococcus sp. JdF3",3,0,0,3,0,0,1,1
+"Species","s__Thermococcus sp. LS2",1,0,0,1,0,0,1,1
+"Species","s__Thermococcus sp. M36",2,0,0,2,0,0,1,1
+"Species","s__Thermococcus sp. M39",1,0,0,1,0,0,1,1
+"Species","s__Thermococcus sp. MAR1",2,0,0,2,0,0,1,1
+"Species","s__Thermococcus sp. MV11",3,0,0,3,0,0,1,1
+"Species","s__Thermococcus sp. PK",7,0,6,1,0,0.8571,0.1429,1
+"Species","s__Thermococcus stetteri",2,0,0,2,0,0,1,1
+"Species","s__Thermofilum adornatum",2,1,0,1,0.5,0,0.5,1
+"Species","s__Thermofilum sp. ex4484_82",1,0,0,1,0,0,1,1
+"Species","s__Thermogymnomonas acidicola",4,4,0,0,1,0,0,1
+"Species","s__Thermoplasma sp. Kam2015",1,1,0,0,1,0,0,1
+"Species","s__Thermoplasmatales archaeon B_DKE",2,0,0,2,0,0,1,1
+"Species","s__Thermoplasmatales archaeon Gpl",1,0,0,1,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA266",3,0,0,3,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA268",1,0,0,1,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA504",5,0,0,5,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA509",10,0,0,10,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA513",24,0,0,24,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA517",4,0,0,4,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA518",4,0,0,4,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA522",27,0,0,27,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA566",3,0,0,3,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA572",42,0,3,39,0,0.0714,0.9286,1
+"Species","s__Thermoplasmatales archaeon UBA574",10,0,0,10,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA579",7,0,1,6,0,0.1429,0.8571,1
+"Species","s__Thermoplasmatales archaeon UBA580",8,0,0,8,0,0,1,1
+"Species","s__Thermoplasmatales archaeon UBA613",12,0,0,12,0,0,1,1
+"Species","s__Thermoproteaceae archaeon",1,1,0,0,1,0,0,1
+"Species","s__Thermoproteus sp. CP80",2,0,2,0,0,1,0,1
+"Species","s__Thermoproteus sp. JCHS_4",1,0,0,1,0,0,1,1
+"Species","s__Thermosphaera aggregans",1,0,0,1,0,0,1,1
+"Species","s__Vulcanisaeta distributa",2,0,0,2,0,0,1,1
+"Species","s__Vulcanisaeta sp.",2,0,0,2,0,0,1,1
+"Species","s__Vulcanisaeta sp. EB80",1,0,1,0,0,1,0,1
+"Species","s__Vulcanisaeta sp. SCGC AB-777_J10",1,0,0,1,0,0,1,1
+"Species","s__archaeon ADurb.Bin336",1,0,0,1,0,0,1,1
+"Species","s__archaeon BMS3Bbin15",4,0,0,4,0,0,1,1
+"Species","s__archaeon SCG-AAA382B04",3,3,0,0,1,0,0,1
+"Species","s__crenarchaeote SCGC AAA261-G18",2,0,0,2,0,0,1,1
+"Species","s__crenarchaeote SCGC AAA261-L14",1,0,0,1,0,0,1,1
+"Species","s__crenarchaeote SCGC AAA261-N23",1,0,1,0,0,1,0,1
+"Species","s__euryarchaeote SCGC AAA261-G15",3,0,0,3,0,0,1,1
+"Species","s__halophilic archaeon DL31",22,0,22,0,0,1,0,1
+"Species","s__uncultured Candidatus Methanomethylophilus sp.",2,1,0,1,0.5,0,0.5,1
+"Species","s__uncultured Halobacteria archaeon",1,1,0,0,1,0,0,1
+"Species","s__uncultured Methanocorpusculaceae archaeon",8,0,7,1,0,0.875,0.125,1
+"Species","s__uncultured Methanoculleus sp.",11,0,7,4,0,0.6364,0.3636,1
+"Species","s__uncultured Methanomassiliicoccaceae bacterium",1,0,0,1,0,0,1,1
+"Species","s__uncultured Methanosarcina sp.",18,3,14,1,0.1667,0.7778,0.0555,1
+"Species","s__uncultured Thermoprotei archaeon",1,0,0,1,0,0,1,1
+"Species","s__uncultured archaeon",5,1,0,4,0.2,0,0.8,1
+"Species","s__uncultured euryarchaeote",1,0,0,1,0,0,1,1

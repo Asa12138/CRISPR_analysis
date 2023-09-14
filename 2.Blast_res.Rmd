@@ -602,3 +602,75 @@ tmpp2=stackplot(t(phy_dis_gene),relative = F,number = T,repel = T,stack_order = 
 tmpp1+tmpp2
 ```
 
+# gene annotation
+把target的所有的gene去注释KEGG，然后做一些富集分析
+首先是只用了prokaryote的蛋白信息比对，所以要设定背景集
+
+```{bash}
+scp -P 10022 -r pengchen@10.73.29.10:/data/home/jianglab/share/blastdb_new/gene_annotation/bac23_targeting_part/bacteria/bac_tmp/uniq_spacer_counts_ko ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/
+scp -P 10022 -r pengchen@10.73.29.10:/data/home/jianglab/share/blastdb_new/gene_annotation/bac23_targeting_part/bacteria/bac_tmp/bac_bac_ko_id ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/
+scp -P 10022 -r pengchen@10.73.29.10:/data/home/jianglab/share/kegg_23/TWKEGG_v2304/KEGG_proteins/proka_ko_list ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/
+```
+
+
+```{r}
+load_all("../../ReporterScore/")
+
+load_KOlist()
+
+read.table("2.Blast_res/bac_bac_ko_id",header = T)
+
+#设定背景集proka
+pro_ko=read.table("2.Blast_res/proka_ko_list",header = F)%>%.[,1]
+pth2ko=explode(KOlist$pathway[,c(1,3)],2,",")
+pth2ko_pro=filter(pth2ko,KOs%in%pro_ko)
+pro_pathway=custom_modulelist(pth2ko_pro,KOlist$pathway[,c(1,4)])
+
+#超几何分布检验
+#input set
+uniq_spacer_counts_ko=read.table("2.Blast_res/uniq_spacer_counts_ko",header = T)
+spacer_ko=unique(uniq_spacer_counts_ko$ko_id)
+
+# e <- clusterProfiler::enricher(gene = spacer_ko,TERM2GENE = pth2ko_pro,TERM2NAME = KOlist$pathway[,c(1,4)],
+#                   pAdjustMethod = "BH", pvalueCutoff = 1, qvalueCutoff = 1)
+# View(e@result)
+# enrichplot::dotplot(e)
+
+#构造一个假的p值
+ko_stat=rbind(
+  data.frame(KO_id=spacer_ko,p.adjust=0.04),
+  data.frame(KO_id=setdiff(pro_ko,spacer_ko),p.adjust=0.1)
+  )
+
+spacer_enrich1=KO_enrich(ko_stat,modulelist = pro_pathway)
+plot(spacer_enrich1,padj_threshold = 0.01)
+
+
+load_Pathway_htable()
+tmpdf=Pathway_htable[,c("level2_name","Pathway_id")]
+colnames(tmpdf)=c("facet_level","ID")
+spacer_enrich1=dplyr::left_join(spacer_enrich1,tmpdf,by=c("ID"),suffix=c("",".y"))
+
+plot(spacer_enrich1,padj_threshold = 0.01,str_width = 100)+
+  facet_grid(facet_level.y~.,scales = "free_y",space = "free",labeller = label_wrap_gen(100))+
+        theme(strip.text.y = element_text(angle = 0))
+
+ggsave("2.Blast_res/5.gene_anno_kegg.pdf",height = 9,width = 9)
+
+#看看丰度高的spacer富集结果
+spacer_ko=uniq_spacer_counts_ko%>%filter(spacer_counts>1000)%>%unique(.$ko_id)
+ko_stat=rbind(
+  data.frame(KO_id=spacer_ko,p.adjust=0.04),
+  data.frame(KO_id=setdiff(pro_ko,spacer_ko),p.adjust=0.1)
+  )
+
+spacer_enrich1=KO_enrich(ko_stat,modulelist = pro_pathway)
+plot(spacer_enrich1,padj_threshold = 0.01)
+
+#某些科学问题下的检验
+#比如丰度高的spacer2ko会富集到哪些？可以把丰度转化成0～1的值进行比较。
+
+
+```
+
+
