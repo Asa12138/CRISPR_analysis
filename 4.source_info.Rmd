@@ -105,7 +105,7 @@ saveRDS(arc_net,file = "2.Blast_res/1.arc_all_info0816_lz.RDS")
 ```
 
 # top 10 species with the most spacers
-## arc
+## arc & bac
 ```{bash}
 #login01
 head /data/home/jianglab/share/seqid2taxid_23/refgen23_abfp_genomes_species
@@ -208,6 +208,8 @@ result1 <- arc_bac_table %>%
 
 # 查看结果
 print(result1)
+saveRDS(result1,"4.source_info/arc_bac_genome_count.rds")
+
 
 # top10 
 top10=group_by(result1,kingdom,species_name)%>%summarise(genome_count=sum(genome_count))
@@ -250,14 +252,20 @@ p1 <- ggplot(result2, aes(x = reorder(species_name, genome_count),
     #labels = c("genomes with CRISPR array", "genomes without CRISPR array")
   #) +
   facet_wrap(~kingdom, scales = "free") +
-  theme(axis.text.x = element_text(size = 18),     # 修改x轴标签字体大小为12
+  theme(axis.text.x = element_text(size = 13),     # 修改x轴标签字体大小为12
         axis.text.y = element_text(size = 16),     # 修改y轴标签字体大小为12
         axis.title.x = element_text(size = 24),    # 修改x轴标题字体大小为14
         axis.title.y = element_text(size = 24),    # 修改y轴标题字体大小为14
-        legend.text = element_text(size = 14))     # 修改图例标签字体大小为10
+        legend.text = element_text(size = 18))     # 修改图例标签字体大小为10
 
 p1
 
+ggsave(filename = "4.source_info/top10_species.pdf",
+       plot=p1,
+       device = "pdf",
+       width = 16,
+       height = 8,
+       dpi = 600)
 
 ```
 

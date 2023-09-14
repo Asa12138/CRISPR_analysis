@@ -35,10 +35,19 @@ Install and import all dependent packages, data import:
 source("./R_config.R")
 output="7.function/"
 ```
-# Header1
+install
 ```{r test,echo=TRUE,fig.cap="Test fig"}
-a=data.frame(type=letters[1:6],num=c(1,3,3,4,5,10))
-gghuan(a)+scale_fill_manual(values=get_cols(6,"col3"))
-ggsave("7.function/test.pdf")
+if(!require("devtools"))install.packages("devtools")
+devtools::install_github('Asa12138/pcutils',dependencies=T)
+devtools::install_github('Asa12138/ReporterScore',dependencies=T)
+library(ReporterScore)
+```
+# bac_bac_kegg
+```{bash}
+
+
+
+
+
 ```
 
