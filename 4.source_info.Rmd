@@ -14,6 +14,7 @@ output:
 editor_options:
   markdown:
     wrap: 150
+  chunk_output_type: console
 ---
 
 ```{r setup, include = FALSE}
@@ -266,6 +267,393 @@ ggsave(filename = "4.source_info/top10_species.pdf",
        width = 16,
        height = 8,
        dpi = 600)
+
+```
+# some counts
+```{bash}
+cd /data/home/jianglab/share/seqid2taxid_23/output/
+
+#!/bin/bash
+#SBATCH --job-name=find
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+
+cut -f1,2,3,6 bac23_spacer_lineage_taxid > bac23_mid
+cut -f1,2,3,6 arc23_spacer_lineage_taxid > arc23_mid
+#vi and delete header
+#spacer_id	source_genome	CRISPR_id	spacer_kingdom
+
+
+#1. spacer_per_genome
+
+cut -f1,2 bac23_mid|cut -f2|sort|uniq -c > bac_spacer_per_genome
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Bacteria"}' bac_spacer_per_genome > bac_spacer_per_genome2
+mv bac_spacer_per_genome2 bac_spacer_per_genome
+cut -f1,2 arc23_mid|cut -f2|sort|uniq -c > arc_spacer_per_genome
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Archaea"}' arc_spacer_per_genome > arc_spacer_per_genome2
+mv arc_spacer_per_genome2 arc_spacer_per_genome
+cat arc_spacer_per_genome >> bac_spacer_per_genome
+mv bac_spacer_per_genome arc_bac_spacer_per_genome
+
+#source_genome	spacer_counts	spacer_kingdom
+
+#2. crispr_per_genome
+
+cut -f2,3 bac23_mid|sort|uniq|cut -f1|sort|uniq -c > bac_crispr_per_genome
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Bacteria"}' bac_crispr_per_genome > bac_crispr_per_genome2
+mv bac_crispr_per_genome2 bac_crispr_per_genome
+cut -f2,3 arc23_mid|sort|uniq|cut -f1|sort|uniq -c > arc_spacer_per_genome
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Archaea"}' arc_spacer_per_genome > arc_spacer_per_genome2
+mv arc_spacer_per_genome2 arc_spacer_per_genome
+cat arc_spacer_per_genome >> bac_crispr_per_genome
+mv bac_crispr_per_genome arc_bac_crispr_per_genome
+
+#source_genome  array_counts	spacer_kingdom
+
+#3. spacer_per_crispr
+cut -f1,3 bac23_mid|cut -f2|sort|uniq -c > bac_spacer_per_crispr
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Bacteria"}' bac_spacer_per_crispr > bac_spacer_per_crispr2
+mv bac_spacer_per_crispr2 bac_spacer_per_crispr
+cut -f1,3 arc23_mid|cut -f2|sort|uniq -c > arc_spacer_per_crispr
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Archaea"}' arc_spacer_per_crispr > arc_spacer_per_crispr2
+mv arc_spacer_per_crispr2 arc_spacer_per_crispr
+cat arc_spacer_per_crispr >> bac_spacer_per_crispr
+mv bac_spacer_per_crispr arc_bac_spacer_per_crispr
+
+#CRISPR_id  spacer_counts	spacer_kingdom
+
+```
+## spacer_per_crispr
+```{r}
+
+library(ggplot2)
+library(dplyr)
+library(ggrepel)
+
+data <- read.table("../data/arc_bac_spacer_counts/arc_bac_spacer_per_crispr", sep = "\t", header = FALSE, col.names = c("CRISPR_id", "spacer_counts", "spacer_kingdom"))
+colnames(data)
+
+# 计算每个 spacer_kingdom 的最大 spacer_counts 和平均 spacer_counts
+summary_data <- data %>%
+  group_by(spacer_kingdom) %>%
+  summarise(max_spacer_counts = max(spacer_counts),
+            mean_spacer_counts = mean(spacer_counts))
+
+
+ggdensity(data,x = "spacer_counts",fill = "spacer_kingdom",add = "median")+
+  xlim(0,200)
+
+data2=group_by(data,spacer_kingdom)%>%mutate(spacer_counts=spacer_counts%/%1*1)%>%count(spacer_counts)
+(p1=ggplot(data2)+
+  geom_bar(aes(x=spacer_counts,y=n,fill=spacer_kingdom),stat = "identity")+
+  theme_classic()+
+  labs(x = "Spacer Counts per CRISPR Array", y = "Frequency") +
+  scale_fill_manual(values = crispr_target_domain)+
+  scale_x_continuous(limits = c(0,1000))+
+  scale_y_continuous(expand = c(0,0,0,0),name = "Frequency")+
+  facet_wrap(~ spacer_kingdom, scales = "free", ncol = 1) +
+  theme(strip.background = element_blank())+
+  geom_text_repel(aes(x = max_spacer_counts, y = 50, 
+                      label = paste("Max:", max_spacer_counts, "\nMean:", round(mean_spacer_counts, 2))),
+            size = 3, data = summary_data))
+
+p2<-p1+coord_cartesian(xlim = c(0,150))
+
+p2
+
+ggsave(filename = "4.source_info/spacer_counts_per_crispr.pdf",
+       plot=p2,
+       device = "pdf",
+       width = 8,
+       height = 6,
+       dpi = 600)
+
+```
+## spacer_per_genome
+```{r}
+
+data <- read.table("../data/arc_bac_spacer_counts/arc_bac_spacer_per_genome", sep = "\t", header = FALSE, col.names = c("source_genome", "spacer_counts", "spacer_kingdom"))
+colnames(data)
+
+head(data)
+# 计算每个 spacer_kingdom 的最大 spacer_counts 和平均 spacer_counts
+summary_data <- data %>%
+  group_by(spacer_kingdom) %>%
+  summarise(max_spacer_counts = max(spacer_counts),
+            mean_spacer_counts = mean(spacer_counts))
+
+ggdensity(data,x = "spacer_counts",fill = "spacer_kingdom",add = "median")+
+  xlim(0,500)
+
+data2=group_by(data,spacer_kingdom)%>%mutate(spacer_counts=spacer_counts%/%10*10)%>%count(spacer_counts)
+(p1=ggplot(data2)+
+  geom_bar(aes(x=spacer_counts,y=n,fill=spacer_kingdom),stat = "identity")+
+  theme_classic()+
+  labs(x = "Spacer Counts per Genome", y = "Frequency") +
+  scale_fill_manual(values = crispr_target_domain)+
+  scale_x_continuous(limits = c(0,2600))+
+  scale_y_continuous(expand = c(0,0,0,0),name = "Frequency")+
+  facet_wrap(~ spacer_kingdom, scales = "free", ncol = 1) +
+  theme(strip.background = element_blank())+
+  geom_text_repel(aes(x = max_spacer_counts, y = 50, 
+                      label = paste("Max:", max_spacer_counts, "\nMean:", round(mean_spacer_counts, 2))),
+            size = 3, data = summary_data))
+
+p3<-p1+coord_cartesian(xlim = c(0,500))
+
+p3
+
+ggsave(filename = "4.source_info/spacer_counts_per_genome.pdf",
+       plot=p3,
+       device = "pdf",
+       width = 8,
+       height = 6,
+       dpi = 600)
+
+
+
+```
+
+## crispr_per_genome
+```{r}
+
+data <- read.table("../data/arc_bac_spacer_counts/arc_bac_crispr_per_genome", sep = "\t", header = FALSE, col.names = c("source_genome", "array_counts", "spacer_kingdom"))
+colnames(data)
+head(data)
+
+# 计算每个 spacer_kingdom 的最大 spacer_counts 和平均 spacer_counts
+summary_data <- data %>%
+  group_by(spacer_kingdom) %>%
+  summarise(max_array_counts = max(array_counts),
+            mean_array_counts = mean(array_counts))
+
+
+ggdensity(data,x = "array_counts",fill = "spacer_kingdom",add = "median")+
+  xlim(0,50)
+
+data2=group_by(data,spacer_kingdom)%>%mutate(array_counts=array_counts%/%1*1)%>%count(array_counts)
+(p1=ggplot(data2)+
+  geom_bar(aes(x=array_counts,y=n,fill=spacer_kingdom),stat = "identity")+
+  theme_classic()+
+  labs(x = "CRISPR Array per Genome", y = "Frequency") +
+  scale_fill_manual(values = crispr_target_domain)+
+  scale_x_continuous(limits = c(0,200))+
+  scale_y_continuous(expand = c(0,0,0,0),name = "Frequency")+
+  facet_wrap(~ spacer_kingdom, scales = "free", ncol = 1) +
+  theme(strip.background = element_blank())+
+  geom_text_repel(aes(x = max_array_counts, y = 50, 
+                      label = paste("Max:", max_array_counts, "\nMean:", round(mean_array_counts, 2))),
+            size = 3, data = summary_data))
+
+p4<-p1+coord_cartesian(xlim = c(0,20))
+
+p4
+
+ggsave(filename = "4.source_info/array_per_genome.pdf",
+       plot=p4,
+       device = "pdf",
+       width = 8,
+       height = 6,
+       dpi = 600)
+
+
+```
+# ratio of spacer with blastn hit per genome
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=find
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23
+cut -f1,2 bac23_total_spacer_blastn_source > bac23_mid
+cut -f2 bac23_mid|sort|uniq -c > bac_spacer_per_genome
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Bacteria"}' bac_spacer_per_genome > bac_spacer_per_genome2
+mv bac_spacer_per_genome2 bac_spacer_per_genome
+
+
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/archaea23
+cut -f1,2 arc23_total_spacer_blastn_source > arc23_mid
+cut -f2 arc23_mid|sort|uniq -c > arc_spacer_per_genome
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Archaea"}' arc_spacer_per_genome > arc_spacer_per_genome2
+mv arc_spacer_per_genome2 arc_spacer_per_genome
+
+#vi and delete header
+#spacer_id	source_genome	
+
+cd /data/home/jianglab/share/seqid2taxid_23/output/arc_bac_spacer_counts
+cat /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/bac_spacer_per_genome \
+/data/home/jianglab/share/seqid2taxid_23/output/arc_spacer_per_genome > arc_bac_spacer_per_genome_have_blastn
+
+sort arc_bac_spacer_per_genome_have_blastn -k 1,1 -o arc_bac_spacer_per_genome_have_blastn
+sort arc_bac_spacer_per_genome -k 1,1 -o arc_bac_spacer_per_genome
+join -t $'\t' arc_bac_spacer_per_genome_have_blastn arc_bac_spacer_per_genome > arc_bac_spacer_per_genome_counts
+cut -f1,2,4,5 arc_bac_spacer_per_genome_counts|awk '{print$1"\t"$2/$3"\t"$4}' > arc_bac_spacer_per_genome_ratio
+
+head arc_bac_spacer_per_genome_ratio
+
+GCA_000007325.1_ASM732v1_genomic.fna	0.6	Bacteria
+GCA_000007385.1_ASM738v1_genomic.fna	0.372881	Bacteria
+GCA_000008085.1_ASM808v1_genomic.fna	0.0487805	Archaea
+GCA_000010565.1_ASM1056v1_genomic.fna	0.0378251	Bacteria
+GCA_000013525.1_ASM1352v1_genomic.fna	1	Bacteria
+GCA_000013685.1_ASM1368v1_genomic.fna	0.0625	Bacteria
+GCA_000014405.1_ASM1440v1_genomic.fna	1	Bacteria
+
+
+```
+
+```{r}
+hit_ratio <- read.table("../data/arc_bac_spacer_counts/arc_bac_spacer_per_genome_ratio", sep = "\t", header = FALSE, col.names = c("source_genome", "hits_ratio", "spacer_kingdom"))
+colnames(hit_ratio)
+
+library(ggplot2)
+head(hit_ratio)
+
+p=pcutils::group_box(hit_ratio["hits_ratio"],"spacer_kingdom",hit_ratio,mode = 3)
+ggsave("test.pdf",plot = p)
+
+add_theme()
+lib_ps("gghalves", library = FALSE)
+p <- ggplot(hit_ratio, aes(x = spacer_kingdom, y = hits_ratio, color = spacer_kingdom)) + 
+  gghalves::geom_half_violin(aes(fill = spacer_kingdom), side = "l", trim = FALSE) + 
+  #gghalves::geom_half_point(side = "r", size = 0.5, alpha = 0.8) + 
+  geom_boxplot(position = position_nudge(x = 0.22), linewidth = 0.6, width = 0.2, outlier.shape = NA)+
+  stat_compare_means(comparisons = list(c("Bacteria","Archaea")))+
+  scale_fill_manual(values = crispr_target_domain)+
+  scale_color_manual(values = crispr_target_domain)+mytheme
+
+ggsave("4.source_info/arc_bac_spacer_hits_ratio.pdf",plot = p,width = 6.5,height = 5)
+
+```
+# ratio of spacer with blastn hit per CRISPR array
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=find
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23
+cut -f1,3 bac23_total_spacer_blastn_source > bac23_mid
+cut -f2 bac23_mid|sort|uniq -c > bac_spacer_per_crispr
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Bacteria"}' bac_spacer_per_crispr > bac_spacer_per_crispr2
+mv bac_spacer_per_crispr2 bac_spacer_per_crispr
+
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/archaea23
+cut -f1,3 arc23_total_spacer_blastn_source > arc23_mid
+cut -f2 arc23_mid|sort|uniq -c > arc_spacer_per_crispr
+awk -v FS=" " -v OFS="\t" '{print $2,$1,"Archaea"}' arc_spacer_per_crispr > arc_spacer_per_crispr2
+mv arc_spacer_per_crispr2 arc_spacer_per_crispr
+
+#sac 1489171
+
+vi and delete header
+#spacer_id	source_genome	
+
+cd /data/home/jianglab/share/seqid2taxid_23/output/arc_bac_spacer_counts
+
+cat /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/bac_spacer_per_crispr \
+/share/home/jianglab/shared/ouxinyi2liuzhen/archaea23/arc_spacer_per_crispr > arc_bac_spacer_per_crispr_have_blastn
+
+
+sort arc_bac_spacer_per_crispr_have_blastn -k 1,1 -o arc_bac_spacer_per_crispr_have_blastn
+sort arc_bac_spacer_per_crispr -k 1,1 -o arc_bac_spacer_per_crispr
+join -t $'\t' arc_bac_spacer_per_crispr_have_blastn arc_bac_spacer_per_crispr > arc_bac_spacer_per_crispr_counts
+cut -f1,2,4,5 arc_bac_spacer_per_crispr_counts|awk '{print$1"\t"$2/$3"\t"$4}' > arc_bac_spacer_per_crispr_ratio
+
+head arc_bac_spacer_per_crispr_ratio
+
+GCA_000007325.1_ASM732v1_genomic.fna	0.6	Bacteria
+GCA_000007385.1_ASM738v1_genomic.fna	0.372881	Bacteria
+GCA_000008085.1_ASM808v1_genomic.fna	0.0487805	Archaea
+GCA_000010565.1_ASM1056v1_genomic.fna	0.0378251	Bacteria
+GCA_000013525.1_ASM1352v1_genomic.fna	1	Bacteria
+GCA_000013685.1_ASM1368v1_genomic.fna	0.0625	Bacteria
+GCA_000014405.1_ASM1440v1_genomic.fna	1	Bacteria
+
+
+```
+
+```{r}
+hit_ratio <- read.table("../data/arc_bac_spacer_counts/arc_bac_spacer_per_crispr_ratio", sep = "\t", header = FALSE, col.names = c("source_array", "hits_ratio", "spacer_kingdom"))
+colnames(hit_ratio)
+
+library(ggplot2)
+head(hit_ratio)
+hit_ratio%>%filter(spacer_kingdom=="Archaea")->arc_part
+tail(arc_part)
+
+# p=pcutils::group_box(hit_ratio["hits_ratio"],"spacer_kingdom",hit_ratio,mode = 3)
+# p
+# ggsave("test.pdf",plot = p)
+
+add_theme()
+lib_ps("gghalves", library = FALSE)
+p <- ggplot(hit_ratio, aes(x = spacer_kingdom, y = hits_ratio, color = spacer_kingdom)) + 
+  gghalves::geom_half_violin(aes(fill = spacer_kingdom), side = "l", trim = FALSE) + 
+  #gghalves::geom_half_point(side = "r", size = 0.5, alpha = 0.8) + 
+  geom_boxplot(position = position_nudge(x = 0.22), linewidth = 0.6, width = 0.2, outlier.shape = NA)+
+  stat_compare_means(comparisons = list(c("Bacteria","Archaea")))+
+  scale_fill_manual(values = crispr_target_domain)+
+  scale_color_manual(values = crispr_target_domain)+mytheme
+p
+
+ggsave("4.source_info/arc_bac_spacer_hits_ratio_array.pdf",plot = p,width = 6.5,height = 5)
+
+```
+
+
+
+# blastn identity
+```{bash}
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/
+cut -f1,4,6 bac23_uniq_random_bitscore > uniq_identity
+#unique_spacer_id        target_kingdom  pident
+sort uniq_identity -k 1,1 -o uniq_identity
+sort uniq_spacer_counts -k 1,1 -o uniq_spacer_counts
+join -t $'\t' uniq_spacer_counts uniq_identity > identity_counts
+
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/archaea23/
+cut -f1,4,6 arc23_uniq_random_bitscore > uniq_identity
+sort uniq_identity -k 1,1 -o uniq_identity
+sort uniq_spacer_counts -k 1,1 -o uniq_spacer_counts
+join -t $'\t' uniq_spacer_counts uniq_identity > identity_counts
+
+cd /data/home/jianglab/share/seqid2taxid_23/output/arc_bac_spacer_counts/
+cat /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/identity_counts /share/home/jianglab/shared/ouxinyi2liuzhen/archaea23/identity_counts > arc_bac_identity_counts
+cut -f2- arc_bac_identity_counts|sort|uniq -c > mid_list
+awk -v FS=" " -v OFS="\t" '{print $5,$3,$4,$1*$2}' mid_list > 2mid_list
+awk 'BEGIN{OFS=FS="\t"} {key = $1 FS $2 FS $3} {sums[key] += $4} END {for (key in sums) {print key, sums[key]}}' 2mid_list > arc_bac_identity_counts_info
+
+head arc_bac_identity_counts_info
+
+pident    spacer_kingdom    target_kingdom    counts
+
+97.5	Archaea	Viruses	82
+97.5	Archaea	Archaea	91
+98.795	Bacteria	Bacteria	7
+100	Bacteria	Bacteria	14877049
+98	Archaea	Archaea	3
+97.561	Archaea	Viruses	62
+98	Bacteria	Bacteria	24
+96.774	Bacteria	Bacteria	1
+
+
+```
+
+```{r}
+data2 <- read.table("../data/arc_bac_spacer_counts/arc_bac_identity_counts_info",header = F,sep = "\t",col.names = c("pident", "spacer_kingdom", "target_kingdom","counts"))
+head(data2)
+
+data2%>%filter(!target_kingdom%in%c("cellular","Eukaryota",""))->tmp2
+tmp2$domain=factor(tmp2$target_kingdom,levels = c("Viruses","Archaea","Bacteria","Fungi","Protozoa"))
+table(tmp2$target_kingdom)
+
+
+
 
 ```
 
