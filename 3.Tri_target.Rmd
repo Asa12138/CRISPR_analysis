@@ -171,7 +171,6 @@ for (i in 1:19) {
   tmp4[[i]]=distinct(tmp_bac_net,source_name,source_genome)
 }
 
-
 cat("combine \n")
 all_tmp1=do.call(iCRISPR::combine,tmp1)
 
@@ -216,6 +215,7 @@ self_df=readRDS("3.Tri_target/1.bac_self_df1.RDS")
 pdf(file = "3.Tri_target/1.bac_tri_target.pdf",width = 13,height = 8)
 plot.self_df(self_df,mode = 1,filter_spacer = 20)
 plot.self_df(self_df,mode = 2,filter_spacer = 20)
+#dev.off()
 
 #真正的genome-genome self-target
 self_df2=readRDS("3.Tri_target/1.bac_self_df2.RDS")
@@ -231,10 +231,10 @@ dev.off()
 genome_c=readRDS("3.Tri_target/1.bac_genome_c.RDS")
 genome_c%>%arrange(-genome_count)%>%head(10)%>%pull(source_name)->top10
 
+
 pdf("3.Tri_target/1.bac_top10genome_tri_target.pdf")
 for (i in top10) {
-  filter(bac_net,source_name==i)%>%
-    tri_target(.,two_level = c("Genome","Species"))%>%plot.self_df->tmpp
+  filter(self_df2,source_name==i)%>%plot.self_df->tmpp
   print(tmpp+labs(title = i))
 }
 dev.off()
@@ -263,5 +263,33 @@ dev.off()
 
 ```
 
+```{r}
+bac_source_tax=readRDS("2.Blast_res/source_tax.RDS")
+source_lineage=distinct_all(bac_source_tax[,-1])
+self_df=readRDS("3.Tri_target/1.bac_self_df1.RDS")
+
+pcutils::lib_ps("ggtree","treedataverse",library = FALSE)
+
+level=7;filter_spacer=20
+f_tax=distinct(source_lineage[,1:level])
+colnames(f_tax) =le[2:8]
+rownames(f_tax)=f_tax[,level]
+self_df_f=filter(self_df,Spacer_count>filter_spacer,Level==le[level+1])
+f_tax=f_tax[rownames(self_df_f),]
+otutab=self_df[rownames(self_df_f),3,drop=F]
+
+load_all("../../pctax/")
+ann_tree(f_tax,otutab,level = level)->tree
+
+tree=left_join(tree,self_df,by=c("label"="Source"))
+
+tree%>%mutate(label1=sub(".?__","",label))->tree2
+class(tree2)=c("tri_target_tree",class(tree2))
+attributes(tree2)$filter_spacer=filter_spacer
+tree2
+```
+
 # self-target
+
+
 
