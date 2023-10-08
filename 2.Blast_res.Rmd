@@ -711,6 +711,8 @@ ggsave(filename = "2.Blast_res/4.bac_adj_gene_ratio_phy_dis_uniq.pdf",width = 5.
 
 
 # gene annotation
+
+## KEGG
 把target的所有的gene去注释KEGG，然后做一些富集分析
 首先是只用了prokaryote的蛋白信息比对，所以要设定背景集
 
@@ -781,4 +783,59 @@ plot(spacer_enrich1,padj_threshold = 0.01)
 
 ```
 
+## NR2GO
+
+GO富集，先把spacer比对到NR库，然后可以找到NR对应的GO关系，用这个做富集。
+```{r}
+load_all("../../ReporterScore/")
+GO_res=list("RefSeq"=list("gene"=NULL,"inter"=NULL),"GeneID"=list("gene"=NULL,"inter"=NULL))
+
+#intergene富集结果#gene富集结果
+#gng=c("gene","inter")[1];mode=c("RefSeq","GeneID")[1]
+
+for (mode in c("RefSeq","GeneID")) {
+  for (gng in c("gene","inter")){
+    
+gene_res=read.table(paste0("2.Blast_res/bac_bac_nr_",gng,"_go_uniq_spacer2"),sep = "\t",header = T)
+gene_res=gene_res[,c("unique_spacer_id","spacer_counts",mode,"GO")]
+
+#GO-RefSeq或GeneID的关系
+gene_res=explode(gene_res,3,"; ")
+gene_res2=distinct_(gene_res,"unique_spacer_id",mode,.keep_all = T)
+
+background=gene_res[,3:4]%>%distinct_all()
+background=explode(background,2,"; ")
+
+load_GOinfo()
+GOmodulelist=custom_modulelist(background[,2:1],GOinfo[,1:2])
+
+#spacer_count
+gene_count=gene_res2%>%group_by_(mode)%>%summarise(spacer_counts=sum(spacer_counts))%>%
+  arrange(-spacer_counts)%>%as.data.frame()
+colnames(gene_count)[1]=mode
+#hist(gene_count$spacer_counts)
+
+#取spacer_number前5%的做前景富集
+top=ceiling(nrow(gene_count)*0.05)
+
+#构造一个假的p值
+ko_stat=rbind(
+  data.frame(KO_id=gene_count[1:top,mode],p.adjust=0.04),
+  data.frame(KO_id=gene_count[top+1:nrow(gene_count),mode],p.adjust=0.1)
+  )
+
+spacer_enrich=KO_fisher(ko_stat,modulelist = GOmodulelist,p.adjust.method = "none")
+GO_res[[mode]][[gng]]=spacer_enrich
+  }
+}
+
+View(GO_res$RefSeq$gene)
+View(GO_res$GeneID$gene)
+
+plot_enrich_res(GO_res$RefSeq,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
+ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_RefSeq.pdf")
+plot_enrich_res(GO_res$GeneID,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
+ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_GeneID.pdf")
+
+```
 
