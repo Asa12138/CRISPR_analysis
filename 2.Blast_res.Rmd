@@ -16,6 +16,7 @@ editor_options:
     wrap: 150
 ---
 
+
 ```{r setup, include = FALSE}
 path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis/"
 knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
