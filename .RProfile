@@ -1,0 +1,5 @@
+install_pc_pkg=function(pkg="pcutils"){
+    for (i in pkg) {
+        devtools::install_github(paste0("Asa12138/",pkg))
+    }
+}
