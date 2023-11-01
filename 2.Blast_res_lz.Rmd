@@ -34,7 +34,7 @@ knitr::opts_knit$set(root.dir = path)
 Install and import all dependent packages, data import:
 ```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
 #source("./R_config.R")
-packages_to_load <- c("pcutils", "iCRISPR","dplyr","reshape2","ggsci","ggpubr","RColorBrewer","cowplot","patchwork","readr","tibble","vegan","ggrepel")
+packages_to_load <- c("pcutils","ReporterScore", "iCRISPR","dplyr","reshape2","ggsci","ggpubr","RColorBrewer","cowplot","patchwork","readr","tibble","vegan","ggrepel")
 # 检查并安装缺失的包
 for (package in packages_to_load) {
   if (!requireNamespace(package, quietly = TRUE)) {
@@ -42,8 +42,7 @@ for (package in packages_to_load) {
   }
 }
 # 加载包
-lapply(packages_to_load, library, character.only = TRUE)
-
+pcutils::lib_ps(packages_to_load)
 #color
 kin_col=c(k__Bacteria="#a6bce3",k__Fungi="#fdbf6f",k__Metazoa="#fb9a99",k__Viridiplantae="#a9d483",
           k__Archaea="#1f78b4",k__Eukaryota_others="#8dd3c7",k__Viruses="#bda7c9")
@@ -213,6 +212,70 @@ saveRDS(bac_net,file = paste0("bac_net_uniq.RDS"))
 "scp -P 10022 -r pengchen@10.73.29.10:~/work/crispr/pc/bac_net_uniq.RDS ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/"
 
 ```
+
+
+# protospacers in different levels
+## arc
+```{r}
+"cd /Users/liuzhen/Documents/GitHub/lz_crispr/data/arc23"
+"scp liuzhen@10.73.29.10:/data/home/jianglab/share/seqid2taxid_23/output/total_bigarc_out_to_arc_bac ."
+
+library(readr)
+library(dplyr)
+arc_spacer_level=readr::read_delim("../data/arc23/total_bigarc_out_to_arc_bac",delim = "\t",col_names = c(
+    "spacer","Genome","CRISPR","Lineage","NCBI_taxonomy","taxid",
+    "sseqid","pident","length","mismath","gapopen","qstart",
+    "qend","sstart","send","evalue","bitscore","database",
+    "sseqid_corrected","sub_taxid","level"
+  ))
+
+# same spacer id with multiple levels: select the minimum level
+arc_spacer_level <- arc_spacer_level %>%
+  group_by(spacer) %>%
+  filter(level == min(level)) %>%
+  ungroup()
+
+# 提取spacer和level列，并且去重
+arc_level <- arc_spacer_level %>%
+  select(spacer, level) %>%
+  distinct()
+
+# 统计level列的频数
+level_counts <- arc_level %>%
+  count(level)
+
+# pie
+library(ggplot2)
+library(ggpubr)
+library(RColorBrewer)
+library(ggrepel)
+# 选择颜色方案，比如"Set3"，可以根据需要选择其他方案
+colors <- brewer.pal(n = length(unique(level_counts$level)), name = "Set3")
+
+# 计算百分比
+level_counts <- transform(level_counts, percent = (n / sum(n)) * 100)
+
+arc_level_p <- ggplot(level_counts, aes(x = as.factor(level), y = n, fill = as.factor(level), label = sprintf("%.1f%%", percent))) +
+  geom_bar(stat = "identity",) +
+  geom_text(aes(label = sprintf("%.1f%%", percent)), vjust = -0.5, size=6) +  # 调整标签位置
+  theme_minimal() +
+  scale_fill_manual(values = colors) +
+  labs(x = "Percentage of Protospacer Levels", y = "Count", fill ="") +  #delete color legend 
+  theme(panel.grid = element_blank())+
+  theme_pubr(base_size=23,legend = c("right"))
+
+arc_level_p
+
+ggsave(filename = "2.Blast_res/arc_level_count.pdf",
+       plot=arc_level_p,
+       device = "pdf",
+       width = 8,
+       height = 7,
+       dpi = 600)
+
+
+```
+
 
 
 
@@ -676,7 +739,7 @@ plot(spacer_enrich1,padj_threshold = 0.01)
 
 GO富集，先把spacer比对到NR库，然后可以找到NR对应的GO关系，用这个做富集。
 ```{r}
-load_all("../../ReporterScore/")
+#load_all("../../ReporterScore/")
 GO_res=list("RefSeq"=list("gene"=NULL,"inter"=NULL),"GeneID"=list("gene"=NULL,"inter"=NULL))
 
 #intergene富集结果#gene富集结果
@@ -705,7 +768,7 @@ colnames(gene_count)[1]=mode
 #hist(gene_count$spacer_counts)
 
 #取spacer_number前5%的做前景富集
-top=ceiling(nrow(gene_count)*0.05)
+top=ceiling(nrow(gene_count)*0.1)
 
 #构造一个假的p值
 ko_stat=rbind(
@@ -718,13 +781,26 @@ GO_res[[mode]][[gng]]=spacer_enrich
   }
 }
 
-View(GO_res$RefSeq$gene)
-View(GO_res$GeneID$gene)
+#View(GO_res$RefSeq$gene)
+#View(GO_res$GeneID$gene)
 
-plot_enrich_res(GO_res$RefSeq,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
-ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_RefSeq.pdf")
-plot_enrich_res(GO_res$GeneID,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
-ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_GeneID.pdf")
+p1 <- plot_enrich_res(GO_res$RefSeq,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
+
+p1
+
+
+
+
+
+
+
+ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_RefSeq_10.pdf")
+p2<-plot_enrich_res(GO_res$GeneID,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
+p2
+
+ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_GeneID_10.pdf")
+
+
 
 ```
 
