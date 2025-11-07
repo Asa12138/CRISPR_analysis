@@ -56,3 +56,18 @@ This project systematically analyzes microbial CRISPR-Cas systems, spacers, envi
 ### 5. CRISPR_SV
 
 - Studies structural variation (SV) events associated with CRISPR systems, quantifies and visualizes SV-genome interactions.
+
+## Data Availability
+
+CRISPRome is a large publicly available CRISPR-Cas system database to date, systematically characterizing CRISPR-Cas elements across a diverse set of bacterial and archaeal genomes. This resource serves as a foundation for studying the global distribution and characteristics of CRISPR systems in microbes.
+
+Download & Access ⬇️: [Download CRISPRome](https://zenodo.org/records/14975125)
+
+## iCRISPR package
+
+The iCRISPR package can summary the result from CrisprCasFinder gracefully, and further CRISPR analysis including CRISPR identification, prepare, summary and visualization.
+
+GitHub Repository : [iCRISPR GitHub](https://github.com/Asa12138/iCRISPR)
+
+## Contact
+For questions or collaborations, please contact: [lz19@zju.edu.cn]
