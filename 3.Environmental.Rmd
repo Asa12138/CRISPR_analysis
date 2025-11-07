@@ -1,0 +1,303 @@
+---
+title: "3.Environmental"
+author:
+  - Asa12138
+date: Mon Apr  8 21:56:49 2024
+link-citations: yes
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       echo = TRUE, #whether to include the source code in the output
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = TRUE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+source("./R_config.R")
+```
+
+# Pre_CCF_res
+
+## microbiome
+1. oral：/data/home/jianglab/share/oral_fna/spacer/ 1225个genome
+2. gut3: /data/home/jianglab/share/gut2/gut3/output 3909个genome
+3. skin: 
+    /data/home/jianglab/share/skin_microbiome/MAG_output/output   
+    /data/home/jianglab/share/skin_microbiome/ISO_skin/output
+4. glacier:
+    /data/home/jianglab/share/glacier/iso_output/output
+    /data/home/jianglab/share/glacier/MAG_output/output
+5. soil:  /share/home/jianglab/shared/metagenome/genomic_earth_micro/soil/output
+6. marine: /share/home/jianglab/shared/metagenome/genomic_earth_micro/marine/output
+
+```{r eval=FALSE}
+library(iCRISPR)
+library(pcutils)
+library(dplyr)
+input_dirs=c(
+  oral_fna="/data/home/jianglab/share/oral_fna/spacer/",
+  gut3="/data/home/jianglab/share/gut2/gut3/output",
+  MAG_output="/data/home/jianglab/share/skin_microbiome/MAG_output/output",
+  ISO_skin="/data/home/jianglab/share/skin_microbiome/ISO_skin/output",
+  iso_output="/data/home/jianglab/share/glacier/iso_output/output",
+  MAG_glacier="/data/home/jianglab/share/glacier/MAG_output/output",
+  soil="/share/home/jianglab/shared/metagenome/genomic_earth_micro/soil/output",
+  marine="/share/home/jianglab/shared/metagenome/genomic_earth_micro/marine/output"
+)
+
+for (i in 1:8) {
+  work_dir=file.path("/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/env_crispr",names(input_dirs)[i])
+  if(!dir.exists(work_dir))dir.create(work_dir)
+  setwd(work_dir)
+  res=multi_pre_CCF_res(input_folder = input_dirs[i],output_folder = NULL,threads=1)
+  save(res,file = "all_crispr.rda")
+  all_fa_res=get_spacer_fa(res,evidence_level = 4)
+  save(all_fa_res,file ="all_level4_spacer.rda")
+  pcutils::write_fasta(all_fa_res,"all_level4_spacer.fa")
+}
+```
+
+/data/home/jianglab/share/glacier/MAG_output/output下报错，试试
+
+/data/home/jianglab/share/glacier/MAG_output/output/MAG_1611DDS_maxbin2_bin_0
+/data/home/jianglab/share/glacier/MAG_output/output/MAG_1611DDS_metabat2_bin_6_002
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/glacier/MAG_output/output/MAG_1611DDS_maxbin2_bin_0 ~/Documents/R/CRISPR_analysis/data/
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/glacier/MAG_output/output/MAG_1611DDS_metabat2_bin_6_002 ~/Documents/R/CRISPR_analysis/data/
+```
+
+```{r}
+pre_CCF_res(input_folder = "../data/MAG_1611DDS_metabat2_bin_6_002",output_folder = NULL)
+```
+
+```{r}
+input_dirs=c(
+  oral_fna="/data/home/jianglab/share/oral_fna/spacer/",
+  gut3="/data/home/jianglab/share/gut2/gut3/output",
+  MAG_output="/data/home/jianglab/share/skin_microbiome/MAG_output/output",
+  ISO_skin="/data/home/jianglab/share/skin_microbiome/ISO_skin/output",
+  iso_output="/data/home/jianglab/share/glacier/iso_output/output",
+  MAG_glacier="/data/home/jianglab/share/glacier/MAG_output/output",
+  soil="/share/home/jianglab/shared/metagenome/genomic_earth_micro/soil/output",
+  marine="/share/home/jianglab/shared/metagenome/genomic_earth_micro/marine/output"
+)
+for (i in 1:8) {
+  work_dir=file.path("/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/env_crispr",names(input_dirs)[i])
+  file.rename(file.path(work_dir,paste0(names(input_dirs)[i],"all_crispr.rda")),file.path(work_dir,paste0(names(input_dirs)[i],"_all_crispr.rda")))
+}
+```
+
+```{r}
+
+for (i in c("ISO_skin/ISO_skin_all_crispr.rda",
+"gut3/gut3_all_crispr.rda ",
+"oral_fna/oral_fna_all_crispr.rda", 
+"MAG_glacier/MAG_glacier_all_crispr.rda",
+"iso_output/iso_output_all_crispr.rda",
+"soil/soil_all_crispr.rda", 
+"MAG_output/MAG_output_all_crispr.rda",
+"marine/marine_all_crispr.rda")) {
+  print(i)
+  file1=paste0("/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/env_crispr/",i)
+  system(paste0("scp -P 45777 -r pengchen@10.73.29.10:",file1," ~/Documents/R/CRISPR_analysis/data/env/"))
+}
+
+```
+
+```{r}
+load_all("~/Documents/R/CRISPR/iCRISPR/")
+list.files("../data/env/",pattern = "all_crispr.rda",full.names = T)->all_crispr_files
+```
+
+```{r}
+tmp1=tmp2=tmp3=list()
+for (i in names(env_match)) {
+  print(i)
+  load(paste0("../data/env/",i,"_all_crispr.rda"))
+  tmp1[[env_match[i]]]=data.frame(env=env_match[i],get_crispr_info(res),row.names = NULL)
+  tmp2[[env_match[i]]]=lapply(res, \(i)i$CRISPR)%>%do.call(rbind,.)%>%
+    data.frame(env=env_match[i],.,row.names = NULL)
+  tmp3[[env_match[i]]]=lapply(res, \(i)i$Cas)%>%do.call(rbind,.)%>%
+    data.frame(env=env_match[i],.,row.names = NULL)
+  #Cas只需要管Cas id对应的type
+  distinct_at(tmp3[[env_match[i]]],c(1:4,6,7))->tmp3[[env_match[i]]]
+}
+do.call(rbind,tmp1)%>%write.csv(file = "3.Environmental/env_crispr_info.csv",row.names = F)
+do.call(rbind,tmp2)%>%write.csv(file = "3.Environmental/env_array_info.csv",row.names = F)
+do.call(rbind,tmp3)%>%write.csv(file = "3.Environmental/env_cas_info.csv",row.names = F)
+```
+
+
+```{r}
+env_match=c(
+  oral_fna="oral",
+  gut3="gut",
+  MAG_output="skin_mag",
+  ISO_skin="skin_iso",
+  iso_output="glacier_iso",
+  MAG_glacier="glacier_mag",
+  soil="soil",
+  marine="marine"
+)
+
+cas_type_list=list()
+for (i in names(env_match)) {
+  print(i)
+  load(paste0("../data/env/",i,"_all_crispr.rda"))
+  cas_type_list[[env_match[i]]]=summary_cas_type(res,each_genome = F)
+}
+rm(res)
+
+cas_type_list[["skin"]]<-combine(cas_type_list[["skin_mag"]],cas_type_list[["skin_iso"]])
+cas_type_list[["glacier"]]<-combine(cas_type_list[["glacier_mag"]],cas_type_list[["glacier_iso"]])
+        
+save(cas_type_list,file = "3.Environmental/cas_type_list.rda")
+```
+
+```{r}
+load("3.Environmental/cas_type_list.rda")
+
+all_type=do.call(rbind,cas_type_list)
+all_type=c(unique(all_type[,1]),unique(all_type[,2]))
+all_type_col=get_cols(all_type)
+
+plist=list()
+for (i in names(cas_type_list)) {
+  print(i)
+  plot.cas_type(cas_type_list[[i]])+
+    scale_fill_manual(values = all_type_col)+
+    ggtitle(i)+xlim(0,3.6)->plist[[i]]
+}
+
+plot_grid(plotlist = plist[1:8],nrow = 2)
+ggsave("3.Environmental/env_cas_type.pdf",width = 18,height = 8)
+
+envs=c("oral","gut","skin","glacier","soil","marine")
+plot_grid(plotlist = plist[envs],nrow = 2)
+ggsave("3.Environmental/env_cas_type2.pdf",width = 13,height = 8)
+```
+
+
+## Tree
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/env_crispr/env_tree_source ~/Documents/R/CRISPR_analysis/analysis/3.Environmental/
+```
+
+```{r}
+
+#修改一些颜色
+phylum_color=setNames(c("#8DD3C7","#FAAB78","#C37B89","#FB8072","#6E85B7","grey","#FCCDE5","#5D534A","#B2A4FF","#986D8E","#E78AC3","#A6D854","#FFD92F","#E5C494","#416D19","#B5CDA3"),c("Bacillota","Pseudomonadota","Thermoproteota","Chloroflexota","Bacteroidota","Others","Actinomycetota","Verrucomicrobiota","Campylobacterota","Cyanobacteriota","Spirochaetota","Euryarchaeota","Planctomycetota","Thermodesulfobacteriota","Thermotogota","Deinococcota"))
+
+
+library(pctax)
+library(ggtree)
+library(ggtreeExtra)
+read_delim("3.Environmental/env_tree_source",delim  = "\t")->env_tree_source
+f_tax=strsplit2(env_tree_source$spacer_lineage,split = ";",
+                                         colnames = c("Kingdom","Phylum","Class","Order","Family","Genus","Species"))
+f_tax2=f_tax
+f_tax2=pctax::pre_tax_table(f_tax2)
+f_tax2=before_tree(f_tax2)
+env_tree_source$species=f_tax2$Species
+
+spe_spacer_count=count(env_tree_source,environment,species,name = "count")
+spe_spacer_count=spe_spacer_count%>%mutate(log_count=log(count),log2_count=log2(count))
+
+ann_tree(f_tax2)->tree
+
+p=easy_tree(tree,highlight = "Phylum",add_tiplab = F,topN = 9,pal = phylum_color)
+
+p1=p+geom_fruit(
+    geom = geom_tile,
+    data = spe_spacer_count,
+    mapping = aes(
+        y=species,
+        x=environment,
+        fill=environment,
+        alpha=log_count
+    ),
+    axis.params = list(axis ="x",text.size=3,text.angle=0,hjust=1)
+)+scale_fill_manual(values = c('oral'="#668B8B",'desert'="mistyrose4",'glacier'="#9370DB",'vagina'="dodgerblue3",
+                               'skin'="mistyrose3",'archaea'="#E82E6F",'gut'="#FF904F",'marine'="#9CFAFF",'soil'="gold"))+
+    scale_alpha(range = c(0.2,1))
+
+open_tree(p1,10)%>%rotate_tree(-90)
+
+ggsave("3.Environmental/env_tree_source.pdf",width = 10,height = 8)
+```
+
+
+Tree2, 画一个物种有无的树，因为上面的只展示有无spacer，没有spacer的可能是没有该物种，也可能有物种没spacer
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/env_crispr/env_total_taxon_tree 3.Environmental/
+```
+
+
+```{r}
+load_all("../../pctax/pctax/")
+read_delim("3.Environmental/env_total_taxon_tree",delim  = "\t")->env_total_taxon_tree
+f_tax=strsplit2(env_total_taxon_tree$lineage,split = ";",
+                                         colnames = c("Kingdom","Phylum","Class","Order","Family","Genus","Species"))
+f_tax2=f_tax
+f_tax2=pctax::pre_tax_table(f_tax2)
+f_tax2=before_tree(f_tax2)
+env_total_taxon_tree$species=f_tax2$Species
+
+spe_count=count(env_total_taxon_tree,environment,species,name = "count")
+
+ann_tree(f_tax2)->tree_all
+
+p=easy_tree(tree_all,highlight = "Phylum",add_tiplab = F,topN = 9,pal = phylum_color)
+
+p1=p+geom_fruit(
+    geom = geom_tile,
+    data = spe_count,
+    mapping = aes(
+        y=species,
+        x=environment,
+        fill=environment
+    ),
+    axis.params = list(axis ="x",text.size=3,text.angle=0,hjust=1)
+)+scale_fill_manual(values = c('oral'="#668B8B",'desert'="mistyrose4",'glacier'="#9370DB",'vagina'="dodgerblue3",
+                               'skin'="mistyrose3",'archaea'="#E82E6F",'gut'="#FF904F",'marine'="#9CFAFF",'soil'="gold"))
+
+open_tree(p1,10)%>%rotate_tree(-90)
+
+ggsave("3.Environmental/env_total_taxon_tree.pdf",width = 10,height = 8)
+
+
+#绘制之前的spacer树，但是注释改为物种是否存在看看
+p=easy_tree(tree,highlight = "Phylum",add_tiplab = F,topN = 9,pal = phylum_color)
+
+p1=p+geom_fruit(
+    geom = geom_tile,
+    data = spe_count,
+    mapping = aes(
+        y=species,
+        x=environment,
+        fill=environment
+    ),
+    axis.params = list(axis ="x",text.size=3,text.angle=0,hjust=1)
+)+scale_fill_manual(values = c('oral'="#668B8B",'desert'="mistyrose4",'glacier'="#9370DB",'vagina'="dodgerblue3",
+                               'skin'="mistyrose3",'archaea'="#E82E6F",'gut'="#FF904F",'marine'="#9CFAFF",'soil'="gold"))
+
+open_tree(p1,10)%>%rotate_tree(-90)
+ggsave("3.Environmental/env_tree_source_taxon.pdf",width = 10,height = 8)
+
+```
+

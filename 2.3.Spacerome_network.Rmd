@@ -1,0 +1,159 @@
+# Spacerome network
+
+## bac
+/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_spacerome_random_bitscore
+
+```{bash}
+cut -f1,2,3,4,6,7,22 /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_spacerome_random_bitscore >/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_spacerome_random_bitscore_f
+```
+
+
+```{r}
+#集群
+library(readr)
+library(dplyr)
+
+bac23_spacerome=read_delim("../data/bac23_spacerome_random_bitscore_f")
+bac23_spacerome=bac23_spacerome[!grepl("unclassified",bac23_spacerome$spacer_lineage),]
+bac23_spacerome$spacer_lineage=gsub("sp\\..*","sp.",bac23_spacerome$spacer_lineage)
+bac23_spacerome=filter(bac23_spacerome,target_kingdom!="cellular organisms")
+bac23_spacerome=dplyr::distinct_at(bac23_spacerome,c(1,3),.keep_all = T)
+write_delim(bac23_spacerome,file = "../data/bac23_spacerome_random_bitscore_f1",delim = "\t")
+```
+
+```{r}
+bac_net_uniq=readRDS("../data/bac23/bac_net_uniq.RDS")
+bac23_spacerome=bac_net_uniq[,c(4,1,7,5,11,9,8)]
+colnames(bac23_spacerome)=colnames(arc23_spacerome)
+rm(bac_net_uniq)
+bac23_spacerome=bac23_spacerome[!grepl("unclassified",bac23_spacerome$spacer_lineage),]
+bac23_spacerome$spacer_lineage=gsub("sp\\..*","sp.",bac23_spacerome$spacer_lineage)
+bac23_spacerome=filter(bac23_spacerome,!target_kingdom%in%c("cellular organisms","Eukaryota"))
+bac23_spacerome=dplyr::distinct_at(bac23_spacerome,c(1,3),.keep_all = T)
+
+table(bac23_spacerome$target_kingdom)/nrow(bac23_spacerome)
+
+bac_tax=rbind(data.frame(genome=bac23_spacerome$source_genome,
+                         Kingdom1=bac23_spacerome$spacer_kingdom,
+                         strsplit2(bac23_spacerome$spacer_lineage,";",
+                                   colnames = pcutils:::common_list$taxaclass)),
+              data.frame(genome=bac23_spacerome$target_genome,
+                         Kingdom1=bac23_spacerome$target_kingdom,
+                         strsplit2(bac23_spacerome$target_lineage,";",
+                                   colnames = pcutils:::common_list$taxaclass)))
+bac_tax=distinct_all(bac_tax)
+bac_tax=distinct(bac_tax,genome,.keep_all = T)
+```
+
+```{r}
+edgels=count(bac23_spacerome,source_genome,target_genome)
+
+load_all("~/Documents/R/MetaNet/MetaNet/")
+
+bac_net=c_net_from_edgelist(edgels,vertex_df = bac_tax%>%rename("name"="genome"),direct = T)
+bac_net=c_net_set(bac_net,vertex_class = "Kingdom1",edge_width = "n")
+# plot(bac_net,width_legend=T)
+
+
+tmp_ske=get_group_skeleton(bac_net,"Kingdom1",count = "n")
+V(tmp_ske)$v_group="Kingdom"
+E(tmp_ske)$label=paste0(E(tmp_ske)$label,"\n",round(100*E(tmp_ske)$label/sum(E(tmp_ske)$label),2),"%")
+pdf("2.Blast_res/6.bac_net_kingdom.pdf",height = 5)
+skeleton_plot(tmp_ske,edge.arrow.size=1,
+              edge.arrow.width=2,edge.loop.angle=2,edge.width=c(1,5,1,1,5)*1,
+              vertex.size=c(5,2,2,2,5)*7,main="Bacteria spacerome",
+              group_legend_title="Kingdom",edge_legend=F)
+dev.off()
+
+
+level="Phylum"
+bac_net_level2=get_group_skeleton(bac_net,level,count = "n")
+bac_net_level2=c_net_set(bac_net_level2,bac_tax%>%select(level,Kingdom1)%>%distinct()%>%column_to_rownames(level),vertex_class = "Kingdom1")
+
+c_net_save(bac_net_level2,"2.Blast_res/6.bac_net","graphml")
+#Gephi
+bac_net_level2=c_net_load("2.Blast_res/6.bac_net_gephi.graphml","graphml")
+
+pdf("2.Blast_res/6.bac_net.pdf",width = 8,height = 5)
+c_net_plot(bac_net_level2,edge.label=NA,edge.loop.angle=2,edge.loop.size=0.5,labels_num = 0.2,
+           width_legend=T,edge_width_range = c(0.5,10),legend_number = T,edge_legend = F,edge.width=0.2,
+           width_legend_title = "Spacer count",group_legend_title = "Kingdom",size_legend = T,
+           size_legend_title = "Genome number")
+c_net_plot(bac_net_level2,get_coors(NULL,go = bac_net_level),edge.label=NA,edge.loop.angle=2,edge.loop.size=0.5,labels_num = 0.2,
+           width_legend=T,edge_width_range = c(0.5,10),legend_number = T,edge_legend = F,edge.width=0.2,
+           width_legend_title = "Spacer count",group_legend_title = "Kingdom",size_legend = T,
+           size_legend_title = "Genome number")
+dev.off()
+
+```
+
+
+
+## arc
+/share/home/jianglab/shared/ouxinyi2liuzhen/archaea23/arc23_spacerome_random_bitscore
+
+```{bash}
+scpjq /share/home/jianglab/shared/ouxinyi2liuzhen/archaea23/arc23_spacerome_random_bitscore ~/Documents/R/CRISPR_analysis/data/
+```
+
+```{r}
+arc23_spacerome=read_delim("../data/arc23_spacerome_random_bitscore")
+
+arc23_spacerome=arc23_spacerome[,c(1,2,3,4,6,7,22)]
+
+arc23_spacerome=arc23_spacerome[!grepl("unclassified",arc23_spacerome$spacer_lineage),]
+arc23_spacerome$spacer_lineage=gsub("sp\\..*","sp.",arc23_spacerome$spacer_lineage)
+arc23_spacerome=filter(arc23_spacerome,target_kingdom!="cellular organisms")
+arc23_spacerome=dplyr::distinct_at(arc23_spacerome,c(1,3),.keep_all = T)
+
+table(arc23_spacerome$target_kingdom)/nrow(arc23_spacerome)
+
+arc_tax=rbind(data.frame(genome=arc23_spacerome$source_genome,
+                         Kingdom1=arc23_spacerome$spacer_kingdom,
+                         strsplit2(arc23_spacerome$spacer_lineage,";",
+                                   colnames = pcutils:::common_list$taxaclass)),
+              data.frame(genome=arc23_spacerome$target_genome,
+                         Kingdom1=arc23_spacerome$target_kingdom,
+                         strsplit2(arc23_spacerome$target_lineage,";",
+                                   colnames = pcutils:::common_list$taxaclass)))
+arc_tax=distinct_all(arc_tax)
+arc_tax=distinct(arc_tax,genome,.keep_all = T)
+```
+
+```{r}
+edgels=count(arc23_spacerome,source_genome,target_genome)
+
+load_all("~/Documents/R/MetaNet/MetaNet/")
+
+arc_net=c_net_from_edgelist(edgels,vertex_df = arc_tax%>%rename("name"="genome"),direct = T)
+arc_net=c_net_set(arc_net,vertex_class = "Kingdom1",edge_width = "n")
+plot(arc_net,width_legend=T)
+
+
+tmp_ske=get_group_skeleton(arc_net,"Kingdom1",count = "n")
+V(tmp_ske)$v_group="Kingdom"
+E(tmp_ske)$label=paste0(E(tmp_ske)$label,"\n",round(100*E(tmp_ske)$label/sum(E(tmp_ske)$label),2),"%")
+pdf("2.Blast_res/6.arc_net_kingdom.pdf",height = 5)
+skeleton_plot(tmp_ske,edge.arrow.size=1,
+              edge.arrow.width=2,edge.loop.angle=2,edge.width=c(5,1,4)*1,
+              vertex.size=c(5,2,4)*7,main="Archaea spacerome",
+              group_legend_title="Kingdom",edge_legend=F)
+dev.off()
+
+
+level="Phylum"
+arc_net_level2=get_group_skeleton(arc_net,level,count = "n")
+arc_net_level2=c_net_set(arc_net_level2,arc_tax%>%select(level,Kingdom1)%>%distinct()%>%column_to_rownames(level),vertex_class = "Kingdom1")
+
+# c_net_save(arc_net_level2,"2.Blast_res/6.arc_net","graphml")
+# #Gephi
+# arc_net_level=c_net_load("2.Blast_res/6.arc_net_gephi.graphml","graphml")
+# c_net_plot(arc_net_level,vertex_size_range = c(2,2))
+
+pdf("2.Blast_res/6.arc_net.pdf",width = 8,height = 5)
+c_net_plot(arc_net_level2,edge.label=NA,edge.loop.angle=2,edge.loop.size=0.5,labels_num = "all",
+           width_legend=T,edge_width_range = c(0.5,10),legend_number = T,edge_legend = F,
+           width_legend_title = "Spacer count",group_legend_title = "Kingdom",size_legend = T,size_legend_title = "Genome number")
+dev.off()
+
+```

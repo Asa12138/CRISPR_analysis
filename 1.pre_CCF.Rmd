@@ -1,0 +1,677 @@
+---
+title: "1.pre_CCF"
+author:
+  - Peng Chen
+date: Tue Aug 15 23:48:10 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_"
+knitr::opts_chunk$set(eval=FALSE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = FALSE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+source("./R_config.R")
+output="1.pre_CCF/"
+```
+
+收集了很多genome
+
+# Crisprcasfinder
+
+[CrisprCasFinder](https://crisprcas.i2bc.paris-saclay.fr/CrisprCasFinder/Index)
+
+wget -c https://crisprcas.i2bc.paris-saclay.fr/Home/DownloadFile?filename=CrisprCasFinder.simg
+这是一个容器
+
+crisprcasfinder这个软件 singularity exec -B /data/home/jianglab/share/last_bac_ccfinder/ CrisprCasFinder.simg 其中 -B 后面这个路径是一个执行路径，就是你的input, output 必须都在这个路径下面可以找到，不一定在下一级，可以在下下级等，只要是这个路径下的就可以。
+
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=crispr
+#SBATCH --output=/data/home/jianglab/share/bacteria_new_gbank/slurm.out/%x_%A_%a.out
+#SBATCH --error=/data/home/jianglab/share/bacteria_new_gbank/slurm.out/%x_%A_%a.err
+#SBATCH --array=1-20
+#SBATCH --partition=cpu
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=2
+START=$SLURM_ARRAY_TASK_ID
+NUMLINES=5
+STOP=$((SLURM_ARRAY_TASK_ID*NUMLINES))
+START="$(($STOP - $(($NUMLINES - 1))))"
+
+echo "START=$START"
+echo "STOP=$STOP"
+
+for (( N = $START; N <= $STOP; N++ ))
+do
+	sample=AAB-S01R1_115
+	echo $sample
+
+	indir=32_MAGs_drep/dereplicated_genomes/
+	outdir=09_crispr
+
+	singularity exec -B $PWD CrisprCasFinder.simg \
+		perl /usr/local/CRISPRCasFinder/CRISPRCasFinder.pl \
+		-so /usr/local/CRISPRCasFinder/sel392v2.so \
+		-cf /usr/local/CRISPRCasFinder/CasFinder-2.0.3 \
+		-drpt /usr/local/CRISPRCasFinder/supplementary_files/repeatDirection.tsv \
+		-rpts /usr/local/CRISPRCasFinder/supplementary_files/Repeat_List.csv \
+		-cas -def G -rcfowce -gscf -cpuM 2 -out $outdir/${sample} -in $indir/${sample}.fa 
+done
+```
+
+# iCRISPR
+
+使用我写的iCRISPR处理所有CCF输出的结果。
+
+```{r}
+system("scp -P 45777 ~/Documents/R/CRISPR/iCRISPR_0.1.0.tar.gz pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/")
+  
+install.packages("/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/iCRISPR_0.1.0.tar.gz",type = "source",repos = NULL)
+```
+
+
+arc有一个文件夹：/data/home/jianglab/share/arc_ccfinder
+
+bac有两个文件夹:/data/home/jianglab/share/crisprfinder/ ;/data/home/jianglab/share/last_bac_ccfinder/
+
+pre_CCF.R
+```{r eval=FALSE}
+library(iCRISPR)
+library(pcutils)
+library(dplyr)
+args <- as.numeric(commandArgs(trailingOnly = TRUE))
+all_dirs=read.table("all_dirs")[,1]
+all_dirs=all_dirs[args[1]:args[2]]
+
+all_res=list()
+all_fa_res=list()
+for (i in all_dirs) {
+  dir=i
+  print(dir)
+  #dir_out=paste0("iCRISPR_out/",basename(dir),"_out/")
+  res=multi_pre_CCF_res(input_folder = paste0("output/",dir),output_folder = NULL,threads=1)
+  save(res,file = paste0("rdals/",dir,".rda"))
+  all_res[[i]]=summary_levels(res)
+  all_fa_res[[i]]=get_spacer_fa(res,evidence_level = 4)
+}
+bbb=do.call(rbind,all_res)
+rownames(bbb)=NULL
+save(bbb,file = paste0("rdals/bac_levels_summary_",args[1],".rda"))
+
+bbb=do.call(rbind,all_fa_res)
+rownames(bbb)=NULL
+save(bbb,file =paste0("rdals/bac_level4_spacer_",args[1],".rda"))
+pcutils::write_fasta(bbb,paste0("spacer_fa/bac_level4_spacer_",args[1],".fa"))
+
+```
+
+所有的genome都处理完了，保存rda文件都在rdals文件夹里。
+
+
+# CCtyper
+
+```{bash}
+ca genome
+cctyper cctyper_test.fna cctyper_test_output --db ~/biosoft/CRISPRCasTyper/data
+
+cd ~/work/test/cctyper_test
+cctyper ../gtdbtk_test/genomes/genome_1.fna cctyper_test_output --db ~/biosoft/CRISPRCasTyper/data --skip_blast --no_plot
+```
+
+cctyper 是可以跑整个genome的，crispr array+cas蛋白一起才能给出一个保守subtype预测
+
+```
+(genome) pengchen 04:07:37 ~/work/test/cctyper_test
+$ cat cctyper_test_output/cas_operons.tab
+Contig	Operon	Start	End	Prediction	Complete_Interference	Complete_Adaptation	Best_type	Best_score	Genes	Positions	E-values	CoverageSeq	CoverageHMM	Strand_Interference	Strand_Adaptation
+NC_013790.1	NC_013790.1@13	1023766	1033123	I-B	100%	100%	I-B	20.0	['Cas6_3_CAS-I-II-III-IV-V-VI', 'Cas8b1_4_CAS-I-B', 'Cas7b_0_CAS-I-B-I-C', 'Cas5_7_CAS-I-B', 'Cas3_1_CAS-I', 'Cas4_5_CAS-I-II-III-IV-V-VI', 'Cas1_6_CAS-I-II-III-IV-V-VI', 'Cas2_4_CAS-I-II-III-IV-V-VI']	[784, 785, 786, 787, 788, 789, 790, 791]	['6.00e-76', '5.20e-282', '1.90e-44', '1.10e-18', '1.80e-56', '1.40e-53', '3.30e-140', '2.80e-28']	[0.988, 0.971, 0.753, 0.67, 0.462, 0.964, 0.972, 0.944]	[1.0, 0.999, 0.933, 0.782, 0.572, 0.994, 0.997, 0.966]	1	1
+NC_013790.1	NC_013790.1@22	1554122	1579025	III-A	100%	NA	III-A	19.0	['Cas1_8_CAS-I-II-III-IV-V-VI', 'Cas2_7_CAS-I-II-III-IV-V-VI', 'Cas6_5_CAS-I-II-III-IV-V-VI', 'Csx1_9_CAS-III', 'Csm5gr7_0_CAS-III-A-III-D', 'Csm4_0_IIIA', 'Csm3gr7_1_CAS-III-A-III-D', 'Csm2gr11_6_CAS-III-A', 'Cas10_1_CAS-III', 'TPR_0_CAS-III-A', 'Csx1_9_CAS-III']	[1166, 1168, 1169, 1170, 1171, 1172, 1173, 1174, 1175, 1177, 1181]	['4.80e-87', '2.60e-17', '5.40e-84', '8.80e-65', '3.00e-19', '3.60e-49', '3.20e-71', '4.00e-24', '1.90e-144', '9.00e-34', '6.30e-72']	[0.857, 0.86, 0.973, 0.923, 0.868, 0.867, 0.855, 0.91, 0.845, 0.897, 0.856]	[0.993, 0.851, 0.995, 0.995, 0.978, 0.904, 0.977, 0.899, 0.998, 0.825, 0.981]	-1	NA
+
+(genome) pengchen 04:07:45 ~/work/test/cctyper_test
+$ cat cctyper_test_output/CRISPR_Cas.tab
+Contig	Operon	Operon_Pos	Prediction	CRISPRs	Distances	Prediction_Cas	Prediction_CRISPRs
+NC_013790.1	NC_013790.1@22	[1554122, 1579025]	III-A	['NC_013790.1_3', 'NC_013790.1_4']	[328, 0]	III-A	['Unknown', 'Unknown']
+NC_013790.1	NC_013790.1@13	[1023766, 1033123]	I-B	['NC_013790.1_2']	[0]	I-B	['I-B']
+```
+
+cctyper 是可以跑整个genome的，crispr array+cas蛋白一起才能给出一个保守subtype预测
+
+所以可以把我们预测到的contigs拿去跑cctyper，节约时间，不用把所有genome重新跑一遍。
+不能拿单个cas蛋白去跑，因为crispr system的subtype需要整体判断。
+```{bash}
+cd /data/home/jianglab/share/arc_ccfinder/
+head crispr_cas/arc_cas_info.csv
+
+"genome","seqid","Cas_id","type","subtype"
+"GCA_001577555.1_ASM157755v1_genomic.fna","LSRU01000009.1","LSRU01000009.1@CAS:1","CAS","CAS"
+
+#根据这个提取出来对应的genome的contig成一个新文件（可以看看是每条contig一个文件还是可以和在一起），然后去跑cctyper，应该每个contig能预测出一个新的Type，SubType
+
+/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/archaea/ #在这里找到genome
+```
+
+```{python}
+import pandas as pd
+import gzip
+import os
+from Bio import SeqIO
+
+# 读取您的CSV文件
+df = pd.read_csv('/data/home/jianglab/share/arc_ccfinder/crispr_cas/arc_cas_info.csv')
+
+# 设置基因组文件夹路径
+genome_dir = '/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/archaea'
+
+# 创建输出目录
+output_dir = "extracted_contigs"
+os.makedirs(output_dir, exist_ok=True)
+
+# 处理每一行数据
+for index, row in df.iterrows():
+    genome_filename = row['genome'].replace('.fna', '.fna.gz')
+    seqid = row['seqid']
+    
+    genome_filepath = os.path.join(genome_dir, genome_filename)
+    
+    if os.path.exists(genome_filepath):
+        with gzip.open(genome_filepath, 'rt') as f:
+            records = list(SeqIO.parse(f, "fasta"))
+            
+        # 查找匹配的contig
+        for record in records:
+            if record.id == seqid or seqid in record.id:
+                # 创建输出文件
+                output_filename = f"{row['genome'].replace('.fna', '')}_{seqid}.fasta"
+                output_filepath = os.path.join(output_dir, output_filename)
+                
+                # 写入匹配的contig
+                with open(output_filepath, 'w') as out_f:
+                    SeqIO.write(record, out_f, "fasta")
+                break
+```
+
+
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=cctyper
+#SBATCH --output=/data/home/jianglab/share/arc_ccfinder/%x_%A_%a.out
+#SBATCH --error=/data/home/jianglab/share/arc_ccfinder/%x_%A_%a.err
+#SBATCH --partition=cpu
+#SBATCH --nodes=1
+#SBATCH --tasks-per-node=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem-per-cpu=1g
+#SBATCH --time=14-00:00:00
+#SBATCH --array=1-10
+
+echo start: `date +'%Y-%m-%d %T'`
+start=`date +%s`
+
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+START=$SLURM_ARRAY_TASK_ID
+NUMLINES=450 #how many sample in one array
+STOP=$((SLURM_ARRAY_TASK_ID*NUMLINES))
+START="$(($STOP - $(($NUMLINES - 1))))"
+
+#set the min and max
+if [ $START -lt 1 ]
+then
+  START=1
+fi
+if [ $STOP -gt 4436 ]
+then
+  STOP=4436
+fi
+
+echo "START=$START"
+echo "STOP=$STOP"
+
+samplelist=/data/home/jianglab/share/arc_ccfinder/extracted_contigs_list
+#############
+for (( N = $START; N <= $STOP; N++ ))
+do
+  sample=$(head -n "$N" $samplelist | tail -n 1)
+	echo $sample
+	start1=`date +%s`
+  cctyper extracted_contigs/${sample}.fasta cctyper_out/${sample} --db ~/biosoft/CRISPRCasTyper/data --skip_blast --no_plot
+	end1=`date +%s`
+  echo `expr $end1 - $start1`s
+done
+##############
+echo end: `date +'%Y-%m-%d %T'`
+end=`date +%s`
+echo TIME:`expr $end - $start`s
+```
+
+
+# Spacer statistics
+我们想要找到所有的level4的spacer进一步分析。
+
+先统计一下所有spacer情况:
+
+## arc
+```{r}
+load("1.pre_CCF/1.arc_levels_summary.rda")
+
+p1=plot(ccc)+labs(title = "Archaea")+mytheme
+p2=plot(ccc,mode = 2)+labs(title = "Archaea")+mytheme
+p1/p2+plot_layout(guides = "collect")
+ggsave("1.pre_CCF/1.arc_levels_summary2.pdf",width = 14,height = 8)
+```
+
+```{r}
+devtools::load_all("~/Documents/R/CRISPR/iCRISPR/")
+
+load("1.pre_CCF/all_arc_crispr.rda")
+level1_2_3_no_cas_spacer=get_spacer_fa(all_arc_crispr,evidence_level = c(1:3),cas = F)
+write_fasta(level1_2_3_no_cas_spacer,file_path = "1.pre_CCF/arc_level1_2_3_no_cas_spacer.fa")
+
+# get_spacer_fa(all_arc_crispr,evidence_level = 2,cas = F)
+# get_spacer_fa(all_arc_crispr,evidence_level = 3,cas = F)
+```
+
+
+## bac
+```{r eval=FALSE}
+ccc=data.frame()
+for (i in c(list.files("1.pre_CCF/last_rdals2/",full.names = T),
+            list.files("1.pre_CCF/rdals2/",full.names = T))) {
+  print(i)
+  load(i)
+  bbc=dplyr::group_by(bbb,evidence_level,Cas)%>%
+    dplyr::summarise(crispr_num=sum(crispr_num),spacer_num=sum(spacer_num))%>%as.data.frame()
+#  bbc=na.omit(bbc)
+  ccc=rbind(ccc,bbc)
+}
+ccc=dplyr::group_by(ccc,evidence_level,Cas)%>%
+  dplyr::summarise(crispr_num=sum(crispr_num),spacer_num=sum(spacer_num))%>%as.data.frame()
+class(ccc)=c("evidence_level","data.frame")
+save(ccc,file = "1.pre_CCF/1.bac_levels_summary.rda")
+```
+
+```{r}
+p1=plot(ccc,num_size = 2.5)+labs(title = "Bacteria")+mytheme
+p2=plot(ccc,mode = 2,num_size = 2.5)+labs(title = "Bacteria")+mytheme
+
+p1/p2+plot_layout(guides = "collect")
+ggsave("1.pre_CCF/1.bac_levels_summary2.pdf",width = 14,height = 8)
+```
+
+```{r}
+arc_stat=data.frame(
+  genome=names(all_arc_crispr),
+  array_n=sapply(all_arc_crispr, \(x)sum(x$CRISPR$evidence_level==4)),
+  cas_n=sapply(all_arc_crispr, \(x)attributes(x)$basic_info$n_cas)
+)
+
+filter(arc_stat,array_n==0,cas_n>0)%>%nrow()
+#908
+filter(arc_stat,array_n>0,cas_n==0)%>%nrow()
+#876
+
+all_arc_crispr[["GCA_017601185.1_ASM1760118v1_genomic.fna"]]%>%View()
+
+```
+
+/data/home/jianglab/share/crisprfinder/, 670
+/data/home/jianglab/share/last_bac_ccfinder/, 384
+
+```{r}
+#集群上运行
+library(iCRISPR)
+
+setwd("/data/home/jianglab/share/crisprfinder/")
+all_dirs=list.files("rdals",full.names=T)
+
+level1_2_3_no_cas_spacer=list()
+for (i in all_dirs) {
+  dir=i
+  print(dir)
+  load(dir)
+  tmp=list()
+  tmp[[1]]=get_spacer_fa(all_arc_crispr,evidence_level = 1,cas = F)
+  tmp[[2]]=get_spacer_fa(all_arc_crispr,evidence_level = 2,cas = F)
+  tmp[[3]]=get_spacer_fa(all_arc_crispr,evidence_level = 3,cas = F)
+  level1_2_3_no_cas_spacer[[i]]=do.call(rbind,tmp)
+}
+bac_level1_2_3_no_cas_spacer=do.call(rbind,level1_2_3_no_cas_spacer)
+pcutils::write_fasta(bac_level1_2_3_no_cas_spacer,
+                     file_path = "/data/home/jianglab/share/crisprfinder/bac_level1_2_3_no_cas_spacer.fa")
+
+setwd("/data/home/jianglab/share/last_bac_ccfinder/")
+all_dirs=list.files("rdals",full.names=T)
+
+level1_2_3_no_cas_spacer=list()
+for (i in all_dirs) {
+  dir=i
+  print(dir)
+  load(dir)
+  tmp=list()
+  tmp[[1]]=get_spacer_fa(all_arc_crispr,evidence_level = 1,cas = F)
+  tmp[[2]]=get_spacer_fa(all_arc_crispr,evidence_level = 2,cas = F)
+  tmp[[3]]=get_spacer_fa(all_arc_crispr,evidence_level = 3,cas = F)
+  level1_2_3_no_cas_spacer[[i]]=do.call(rbind,tmp)
+}
+bac_level1_2_3_no_cas_spacer=do.call(rbind,level1_2_3_no_cas_spacer)
+pcutils::write_fasta(bac_level1_2_3_no_cas_spacer,
+                     file_path = "/data/home/jianglab/share/last_bac_ccfinder/bac_level1_2_3_no_cas_spacer.fa")
+
+```
+
+
+# Spacer properties
+用python脚本cal_complexity.py计算各种序列性质比较快。
+
+## arc
+
+```{r}
+if(FALSE){
+  #spcaer太多了，用R比较慢
+  load("1.pre_CCF/arc_level4_spacer.rda")
+  nrow(bbb)
+  arc_level4_spacer_info=summary_seq(bbb[1:100,])
+}
+#用python快很多
+system("python ./cal_complexity.py -h")
+system("python ./cal_complexity.py -f 1.pre_CCF/arc_level4_spacer.fa -o 1.pre_CCF/")
+
+readr::read_csv("1.pre_CCF/arc_level4_spacer_complexity.csv")->arc_level4_spacer_info
+#有165个带N的spacer序列
+filter(arc_level4_spacer_info,A+C+`T`+G==length)->arc_level4_spacer_info
+mutate(arc_level4_spacer_info,GC=(G+C)/length)->arc_level4_spacer_info
+
+```
+
+长度分布情况
+```{r}
+table(arc_level4_spacer_info$length)%>%which.max()
+
+gghistogram(arc_level4_spacer_info$length,
+            fill = crispr_target_domain["Archaea"],binwidth = 1)+
+  scale_y_continuous(expand = c(0,0),limits = c(0,5e4))+
+  geom_vline(xintercept = 36,linetype=2,col="blue",size=0.6)+
+  annotate("text",x = 42,y=4.7e4,label="36bp",col="blue")+
+  ylab("Archaea spacer count")+xlab("Length")
+
+ggsave("1.pre_CCF/2.arc_spacer_len.pdf",width = 5,height = 3.5)
+```
+
+## bac
+
+细菌的长度分布情况使用shell的sort |uniq -c进行统计，只在R做可视化
+```{r}
+system("scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/bac_ccfinder_merge/bac_spacer_length_distribution 1.pre_CCF/")
+
+bac_spacer_length_distribution=read_table("1.pre_CCF/bac_spacer_length_distribution",col_names = c("count","length"))
+
+ggbarplot(bac_spacer_length_distribution,x = "length",y="count")
+
+ggplot(bac_spacer_length_distribution,aes(x = length,y=count))+
+  geom_col(fill=crispr_target_domain["Bacteria"],linewidth=0.5,color="black")+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(0,1.9e7))+
+  geom_vline(xintercept = 32,linetype=2,col="blue",size=0.6)+
+  annotate("text",x = 38,y=1.8e7,label="32bp",col="blue")+
+  xlim(26,60)+
+  ylab("Bacteria spacer count")+xlab("Length")+mytheme
+
+ggsave("1.pre_CCF/2.bac_spacer_len.pdf",width = 5,height = 3.5)
+```
+
+细菌的spacer大概有25,000,000个，但实际上有大量一模一样的spacer（可能来自同一species的多个genome，虽然并不是所有的spacer history都一样），所以在统计信息或blast时可以先聚类（完全一致的为一类，保留对应关系，方便将聚类spacer拓展到所有的）
+
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=Bac_pap
+#SBATCH --output=/data/home/jianglab/share/bac_ccfinder_merge/slurm.out/%x_%A_%a.out
+#SBATCH --error=/data/home/jianglab/share/bac_ccfinder_merge/slurm.out/%x_%A_%a.err
+#SBATCH --partition=gpushort
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+
+# 输入文件名
+input_file="array_uniq.fa"
+# 输出文件名
+output_file="duplicates.txt"
+
+# 使用awk进行重复序列的查找和输出
+awk 'BEGIN {RS=">"; FS="\n"}
+    NR>1 {seq=$2;
+    if (seq in sequences) {sequences[seq]=sequences[seq] "," $1}
+    else {sequences[seq]=$1}}
+    END {for (seq in sequences) {print sequences[seq]}}' "$input_file" > tmp
+
+cat tmp|cut -f1 -d ','>tmp1
+paste tmp1 tmp>"$output_file"
+rm tmp tmp1
+
+#duplicates.txt有两列，第一列作为代表，第二列是重复情况
+#挑出不重复的部分
+
+awk '{print $1}' "$output_file" | seqkit grep -f - "$input_file" > arc23_spacer_uniq.fa
+```
+
+
+# Cas statistics
+
+## arc
+
+可以整合所有文件夹里的crispr对象
+```{r}
+#集群上运行
+library(iCRISPR)
+library(pcutils)
+library(dplyr)
+all_dirs=paste0("dir_",1:100)
+
+all_res=list()
+for (i in all_dirs) {
+  dir=i
+  print(dir)
+  load(paste0("rdals/",dir,".rda"))
+  all_res[[i]]=res
+}
+all_arc_crispr=do.call(combine_crispr,all_res)
+save(all_arc_crispr,file = paste0("all_arc_crispr.rda"))
+
+#本地运行
+system("scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/arc_ccfinder/all_arc_crispr.rda ./1.pre_CCF/")
+```
+
+
+```{r}
+load("1.pre_CCF/all_arc_crispr.rda")
+cas_type_res=summary_cas_type(all_arc_crispr,each_genome = F)
+
+save(cas_type_res,file = "1.pre_CCF/arc_all_cas_type_res.rda")
+
+load("1.pre_CCF/arc_all_cas_type_res.rda")
+#所有genome中有crispr的数量：9235/13254
+sapply(all_arc_crispr, \(i)!is.null(i$CRISPR))%>%sum
+#所有genome中有level4的crispr的数量：3140/13254
+sapply(all_arc_crispr, \(i)sum(i$CRISPR$evidence_level==4)>0)%>%sum
+
+#这个TypeU比较特殊，会变成Type
+cas_type_res[which(cas_type_res$type=="Type"),"type"]="TypeU"
+plot.cas_type(cas_type_res)+scale_fill_manual(values = pcutils::get_cols(18))+
+  labs(title = "Archaea Cas type")
+ggsave("1.pre_CCF/3.arc_cas_type.pdf")
+
+my_sunburst(cas_type_res[,c(5,1,2,4)])
+
+cas_type_res=mutate(cas_type_res,class=ifelse(type%in%c("TypeI","TypeIII"),"Class1",
+                                                      ifelse(type=="TypeII","Class2","CAS")))
+
+gghuan2(cas_type_res[,c("class","type","subtype","n")]%>%arrange(class),huan_width = c(0.5,1,1))+
+  scale_fill_manual(values = get_cols(n = 20))+
+    labs(title = "Archaea Cas type")
+ggsave("1.pre_CCF/3.arc_cas_type.pdf")
+```
+
+```{r}
+load("1.pre_CCF/all_arc_crispr.rda")
+tmp1=get_crispr_info(all_arc_crispr)
+tmp2=lapply(all_arc_crispr, \(i)i$CRISPR)%>%do.call(rbind,.)%>%
+    data.frame(.,row.names = NULL)
+tmp3=lapply(all_arc_crispr, \(i)i$Cas[,c(1:3,5:6)])%>%do.call(rbind,.)%>%distinct_all()%>%
+    data.frame(.,row.names = NULL)
+write.csv(tmp1,file = "1.pre_CCF/arc_crispr_info.csv",row.names = F)
+write.csv(tmp2,file = "1.pre_CCF/arc_array_info.csv",row.names = F)
+write.csv(tmp3,file = "1.pre_CCF/arc_cas_info.csv",row.names = F)
+```
+
+
+## bac
+
+/data/home/jianglab/share/crisprfinder/, 670
+
+/data/home/jianglab/share/last_bac_ccfinder/, 384
+
+bac太多了，应该不太好直接把所有crispr对象整合
+```{r}
+#集群上运行
+library(iCRISPR)
+
+all_dirs=list.files("rdals",full.names=T)
+
+cas_type_res=list()
+for (i in all_dirs) {
+  dir=i
+  print(dir)
+  load(dir)
+  cas_type_res[[i]]=summary_cas_type(res,each_genome = F)
+}
+
+all_cas_type_res=do.call(combine,cas_type_res)
+save(cas_type_res,file = paste0("all_cas_type_res.rda"))
+
+```
+
+```{r}
+system("scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/crisprfinder/all_cas_type_res.rda 1.pre_CCF/")
+system("scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/last_bac_ccfinder/last_all_cas_type_res.rda 1.pre_CCF/")
+
+load("1.pre_CCF/all_cas_type_res.rda")
+all_cas_type_res0=do.call(\(...)combine.cas_type(...,each_genome=F),cas_type_res)
+load("1.pre_CCF/last_all_cas_type_res.rda")
+all_cas_type_res=do.call(\(...)combine.cas_type(...,each_genome=F),cas_type_res)
+
+bac_cas_type_res=combine.cas_type(all_cas_type_res0,all_cas_type_res,each_genome=F)
+
+#这个TypeU比较特殊，会变成Type
+bac_cas_type_res[which(bac_cas_type_res$type=="Type"),"type"]="TypeU"
+plot.cas_type(bac_cas_type_res)+scale_fill_manual(values = pcutils::get_cols(18))+
+  labs(title = "Bacteria Cas type")
+ggsave("1.pre_CCF/3.bac_cas_type.pdf")
+
+plot.cas_type(bac_cas_type_res,mode = 3)
+
+bac_cas_type_res=mutate(bac_cas_type_res,class=ifelse(type%in%c("TypeI","TypeIII"),"Class1",
+                                                      ifelse(type=="TypeII","Class2","CAS")))
+
+gghuan2(bac_cas_type_res[,c("class","type","subtype","n")]%>%arrange(class),huan_width = c(0.5,1,1))+
+  scale_fill_manual(values = get_cols(n = 20))+
+  labs(title = "Bacteria Cas type")
+ggsave("1.pre_CCF/3.bac_cas_type.pdf")
+```
+
+```{r}
+library(dplyr)
+library(iCRISPR)
+#集群上运行
+get_crispr_info=function(crispr){
+  if(is.null(crispr)) return(NULL)
+  if (inherits(crispr, "multi_crispr")) {
+    aaa <- lapply(crispr, get_crispr_info)
+    bbb <- do.call(rbind, aaa)
+    rownames(bbb) <- NULL
+    return(bbb)
+  }
+  data.frame(attributes(crispr)$basic_info,
+             n_cas_protein=ifelse(is.null(crispr$Cas),0,nrow(crispr$Cas)),
+             n_crispr_level4=sum(crispr$CRISPR$evidence_level==4)
+  )
+}
+
+all_dirs=list.files("rdals",full.names=T)
+
+tmp1=tmp2=tmp3=list()
+for (i in all_dirs) {
+  dir=i
+  print(dir)
+  load(dir)
+  tmp1[[i]]=data.frame(get_crispr_info(res),row.names = NULL)
+  tmp2[[i]]=lapply(res, \(i)i$CRISPR)%>%do.call(rbind,.)%>%
+    data.frame(.,row.names = NULL)
+  tmp3[[i]]=lapply(res, \(i)i$Cas)%>%do.call(rbind,.)%>%
+    data.frame(.,row.names = NULL)
+  #Cas只需要管Cas id对应的type
+  distinct_at(tmp3[[i]],c(1:3,5:6))->tmp3[[i]]
+}
+save(tmp1,tmp2,tmp3,file = "bac_crispr_info.rda")
+do.call(rbind,tmp1)%>%write.csv(file = "bac_crispr_info.csv",row.names = F)
+do.call(rbind,tmp2)%>%write.csv(file = "bac_array_info.csv",row.names = F)
+do.call(rbind,tmp3)%>%write.csv(file = "bac_cas_info.csv",row.names = F)
+
+```
+
+
+# All crispr
+
+## arc
+```{r}
+load("1.pre_CCF/all_arc_crispr.rda")
+
+all_arc_array=lapply(all_arc_crispr,\(i)i$CRISPR)%>%do.call(rbind,.)
+readr::write_delim(all_arc_array,file = "../data/arc23/all_arc_array.tsv",delim = "\t")
+
+```
+
+## bac
+
+```{r}
+load("1.pre_CCF/all_arc_crispr.rda")
+
+# 集群上运行
+# library(iCRISPR)
+# library(pcutils)
+library(dplyr)
+all_dirs=list.files("rdals",pattern = "dir_*")
+dir.create("rdals/all_array")
+all_res=list()
+for (i in all_dirs) {
+  dir=i
+  print(dir)
+  load(paste0("rdals/",dir))
+  all_arc_array=lapply(res,\(i)i$CRISPR)%>%do.call(rbind,.)
+  readr::write_delim(all_arc_array,file = paste0("rdals/all_array/",dir,".tsv"),delim = "\t")
+}
+```
+
+
+

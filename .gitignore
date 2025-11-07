@@ -1,0 +1,8 @@
+# Ignore everything
+*
+
+# Except these in all folders
+!.gitignore
+!*.Rmd
+!*.md
+!*/

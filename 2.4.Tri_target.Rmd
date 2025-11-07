@@ -1,0 +1,313 @@
+---
+title: "2.4.Tri_target"
+author:
+  - Peng Chen
+date: Wed Aug 16 11:29:19 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = FALSE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+source("./R_config.R")
+output="2.4.Tri_target/"
+
+arc_net=readRDS("2.Blast_res/1.arc_all_info1026.RDS")
+```
+
+# source-target
+
+## arc
+
+桑基图展示source-target情况：
+```{r}
+dir.create("2.4.Tri_target/arc_sankey/")
+#指定two_level时展示指定level,topN1指定各个bar的元素
+sankey_overview(arc_net,two_level = c("Phylum","Kingdom"),topN1 = c(5,3))
+
+#直接导出各个level的结果
+sankey_overview(arc_net,file = "2.4.Tri_target/arc_sankey/arc")
+
+```
+
+self targeting 的 same species 归到genome水平有3种情况：only self genome；self genome and other genome；only other genome。如何统计量化，以及在个别物种上看
+```{r}
+arc_net=mutate(arc_net,target_which=ifelse(target_kingdom=="Viruses","Viruses",ifelse(source_genome==target_genome,"Self","Others")))
+
+#统计genome水平
+arc_genome_lev=group_by(arc_net,source_genome)%>%summarise(spacer_n=n(),self_genome=sum(self_genome_target),other_genome=sum(!self_genome_target))
+arc_genome_lev=mutate(arc_genome_lev,self_genome_ratio=self_genome/spacer_n)
+
+```
+
+
+计算tri-target结果，注意这里的self-target时基于不同的level的，比如Species的self-target就是同一个Species target到同一个Species，但是实际上可能是不同的genome。
+所以最好叫intra-level？比如intra-genus target之类的？
+```{r}
+self_df=tri_target(arc_net)
+```
+
+### network
+
+```{r}
+
+```
+
+
+### ternary plot
+```{r}
+pdf(file = "2.4.Tri_target/1.arc_tri_target.pdf",width = 13,height = 8)
+plot.self_df(self_df,mode = 1,filter_spacer = 20)
+plot.self_df(self_df,mode = 2,filter_spacer = 20)
+
+#真正的genome-genome self-target
+self_df2=tri_target(arc_net,two_level = c("Genome"))
+plot.self_df(self_df2,filter_spacer = 20)
+
+self_df3=tri_target(arc_net,two_level = c("Genome","Species"))
+plot.self_df(self_df3,filter_spacer = 20)
+
+dev.off()
+
+
+#挑genome比较多的source species
+distinct(arc_net,source_name,source_genome)%>%count(source_name)%>%
+  arrange(-n)%>%head(10)%>%pull(source_name)->top10
+
+pdf("2.4.Tri_target/1.arc_top10genome_tri_target.pdf")
+for (i in top10) {
+  filter(arc_net,source_name==i)%>%
+    tri_target(.,two_level = c("Genome","Species"))%>%plot.self_df->tmpp
+  print(tmpp+labs(title = i))
+}
+dev.off()
+
+#给self_df加上每个species统计的genome数量
+genome_c=distinct(arc_net,source_name,source_genome)%>%
+  count(source_name,name = "genome_count")
+self_df_and_count=left_join(self_df,genome_c,by=c(Source="source_name"))
+
+filter(self_df_and_count,Level=="Species")%>%arrange(-genome_count)%>%write.csv("2.4.Tri_target/arc_self_df_and_count.csv",row.names = F)
+
+
+#表格展示self-target最多的一些物种
+filter(self_df_and_count,Level=="Species",Spacer_count>20)%>%arrange(-`T_self_r`)%>%
+  select(2:3,10,4:6,7)%>%head(10)->arc_self_top
+
+arc_self_top$T_self_r=paste0(arc_self_top$T_self_r*100,"%")
+colnames(arc_self_top)[7]="T_self_ratio"
+sanxian(arc_self_top,fig=T,rows=NULL)
+
+#绘制self-target最多的一些物种内的genome情况
+pdf("2.4.Tri_target/1.arc_top10_self_genome_tri_target.pdf")
+for (i in arc_self_top$Source) {
+  filter(arc_net,source_name==i)%>%
+    tri_target(.,two_level = c("Genome","Species"))%>%plot.self_df->tmpp
+  print(tmpp+labs(title = i))
+}
+dev.off()
+
+```
+
+### tree plot
+```{r}
+pdf("2.4.Tri_target/2.arc_tri_target_tree.pdf",width = 13,height = 10)
+for (i in 3:7) {
+  tree=tri_target_tree(arc_net,self_df = self_df,level = i,filter_spacer = 20)
+  plot.tri_target_tree(tree,label_size = 2)%>%print()
+}
+dev.off()
+```
+
+## bac
+
+```{bash}
+scp -P 45777 pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_split/pc/bac_net_19.RDS ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/
+```
+
+桑基图展示source-target情况：
+```{r}
+load("2.Blast_res/2.bac_pd_count.RDS")
+bac_target_tax=readRDS("2.Blast_res/target_tax.RDS")
+bac_target_tax=distinct_all(bac_target_tax[,-1])
+bac_source_tax=readRDS("2.Blast_res/source_tax.RDS")
+bac_source_tax=distinct_all(bac_source_tax[,-1])
+
+if(!"target_Kingdom"%in%colnames(bac_count))bac_count=left_join(bac_count,bac_target_tax,
+                                                                by=c("target_name"="target_Species"),suffix = c("", ".y"),keep=T)
+if(!"source_Kingdom"%in%colnames(bac_count))bac_count=left_join(bac_count,bac_source_tax,
+                                                                by=c("source_name"="source_Species"),suffix = c("", ".y"),keep=T)
+
+
+dir.create("2.4.Tri_target/bac_sankey/")
+#指定two_level时展示指定level,topN1指定各个bar的元素
+sankey_overview(bac_count,two_level = c("Phylum","Kingdom"),topN1 = c(5,3))
+
+#直接导出各个level的结果
+sankey_overview(bac_count,file = "2.4.Tri_target/bac_sankey/bac")
+```
+
+```{r}
+#集群 /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_split/
+library(dplyr)
+library(iCRISPR)
+tmp1=tmp4=list()
+for (i in 1:19) {
+  cat("read file:",i,"\n")
+  tmp_bac_net=readRDS(file = paste0("bac_net_",i,".RDS"))
+  cat("tri_target1:",i,"\n")
+  tmp1[[i]]=tri_target(tmp_bac_net)
+  cat("count genome \n")
+  tmp4[[i]]=distinct(tmp_bac_net,source_name,source_genome)
+}
+
+cat("combine \n")
+all_tmp1=do.call(iCRISPR::combine,tmp1)
+
+all_tmp4=do.call(rbind,tmp4)
+bac_genome_c=distinct(all_tmp4,source_name,source_genome)%>%
+  count(source_name,name = "genome_count")
+
+saveRDS(all_tmp1,file = "1.bac_self_df1.RDS")
+saveRDS(bac_genome_c,file = "1.bac_genome_c.RDS")
+
+"scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_split/1.bac_self_df1.RDS ~/Documents/R/CRISPR_analysis/analysis/2.4.Tri_target/"
+"scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_split/1.bac_genome_c.RDS ~/Documents/R/CRISPR_analysis/analysis/2.4.Tri_target/"
+
+```
+
+```{r}
+library(dplyr)
+library(iCRISPR)
+tmp2=tmp3=list()
+for (i in 1:19) {
+  cat("read file:",i,"\n")
+  tmp_bac_net=readRDS(file = paste0("bac_net_",i,".RDS"))
+  cat("tri_target2:",i,"\n")
+  tmp2[[i]]=tri_target(tmp_bac_net,two_level = c("Genome"))
+  cat("tri_target3:",i,"\n")
+  tmp3[[i]]=tri_target(tmp_bac_net,two_level = c("Genome","Species"))
+}
+
+all_tmp2=do.call(iCRISPR::combine,tmp2)
+all_tmp3=do.call(iCRISPR::combine,tmp3)
+saveRDS(all_tmp2,file = "1.bac_self_df2.RDS")
+saveRDS(all_tmp3,file = "1.bac_self_df3.RDS")
+
+"scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_split/1.bac_self_df2.RDS ~/Documents/R/CRISPR_analysis/analysis/2.4.Tri_target/"
+"scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/bac23_split/1.bac_self_df3.RDS ~/Documents/R/CRISPR_analysis/analysis/2.4.Tri_target/"
+```
+
+
+### network
+
+### ternary plot
+```{r}
+self_df=readRDS("2.4.Tri_target/1.bac_self_df1.RDS")
+  
+pdf(file = "2.4.Tri_target/1.bac_tri_target.pdf",width = 13,height = 8)
+plot.self_df(self_df,mode = 1,filter_spacer = 20)
+plot.self_df(self_df,mode = 2,filter_spacer = 20)
+#dev.off()
+
+#真正的genome-genome self-target
+if(file.exists("2.4.Tri_target/1.bac_self_df2.RDS")){
+  self_df2=readRDS("2.4.Tri_target/1.bac_self_df2.RDS")
+  plot.self_df(self_df2,filter_spacer = 20)
+}
+if(file.exists("2.4.Tri_target/1.bac_self_df3.RDS")){
+  self_df3=readRDS("2.4.Tri_target/1.bac_self_df3.RDS")
+  plot.self_df(self_df3,filter_spacer = 20)
+}
+
+dev.off()
+
+
+#挑genome比较多的source species
+genome_c=readRDS("2.4.Tri_target/1.bac_genome_c.RDS")
+genome_c%>%arrange(-genome_count)%>%head(10)%>%pull(source_name)->top10
+
+
+# pdf("2.4.Tri_target/1.bac_top10genome_tri_target.pdf")
+# for (i in top10) {
+#   filter(self_df2,source_name==i)%>%plot.self_df->tmpp
+#   print(tmpp+labs(title = i))
+# }
+# dev.off()
+
+
+#给self_df加上每个species统计的genome数量
+self_df_and_count=left_join(self_df,genome_c,by=c(Source="source_name"))
+
+filter(self_df_and_count,Level=="Species")%>%arrange(-genome_count)%>%write.csv("2.4.Tri_target/bac_self_df_and_count.csv",row.names = F)
+
+#表格展示self-target最多的一些物种
+filter(self_df_and_count,Level=="Species",Spacer_count>20)%>%arrange(-`T_self_r`)%>%
+  select(2:3,10,4:6,7)%>%head(10)->bac_self_top
+
+bac_self_top$T_self_r=paste0(bac_self_top$T_self_r*100,"%")
+colnames(bac_self_top)[7]="T_self_ratio"
+sanxian(bac_self_top,fig=T,rows=NULL)
+
+
+#绘制self-target最多的一些物种内的genome情况
+pdf("2.4.Tri_target/1.bac_top10_self_genome_tri_target.pdf")
+for (i in bac_self_top$Source) {
+  filter(bac_net,source_name==i)%>%
+    tri_target(.,two_level = c("Genome","Species"))%>%plot.self_df->tmpp
+  print(tmpp+labs(title = i))
+}
+dev.off()
+
+```
+
+```{r}
+bac_source_tax=readRDS("2.Blast_res/source_tax.RDS")
+source_lineage=distinct_all(bac_source_tax[,-1])
+self_df=readRDS("2.4.Tri_target/1.bac_self_df1.RDS")
+
+pcutils::lib_ps("ggtree","treedataverse",library = FALSE)
+
+level=7;filter_spacer=20
+f_tax=distinct(source_lineage[,1:level])
+colnames(f_tax) =le[2:8]
+rownames(f_tax)=f_tax[,level]
+self_df_f=filter(self_df,Spacer_count>filter_spacer,Level==le[level+1])
+f_tax=f_tax[rownames(self_df_f),]
+otutab=self_df[rownames(self_df_f),3,drop=F]
+
+load_all("../../pctax/")
+ann_tree(f_tax,otutab,level = level)->tree
+
+tree=left_join(tree,self_df,by=c("label"="Source"))
+
+tree%>%mutate(label1=sub(".?__","",label))->tree2
+class(tree2)=c("tri_target_tree",class(tree2))
+attributes(tree2)$filter_spacer=filter_spacer
+tree2
+```
+

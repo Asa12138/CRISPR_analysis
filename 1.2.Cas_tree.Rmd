@@ -1,0 +1,1496 @@
+# Cas tree (deprecated)
+
+```{r}
+show_cas_type()
+```
+
+```{r}
+load("1.pre_CCF/all_arc_crispr.rda")
+lapply(all_arc_crispr,\(i)i[["Cas"]])%>%
+  do.call(rbind,.)->all_arc_cas
+
+filter(all_arc_cas,protein=="cas9_TypeII")%>%distinct(seqid,start,end,.keep_all = T)->arc_cas9_TypeII
+anyDuplicated(arc_cas9_TypeII$Cas_id)
+
+revComp=function(i){
+  library(Biostrings)
+  DNAString(i)%>%reverseComplement()%>%as.character()
+}
+
+revComp(arc_cas9_TypeII$sequence)
+
+arc_cas9_TypeII$sequence2=arc_cas9_TypeII$sequence
+for (i in 1:nrow(arc_cas9_TypeII)) {
+  if (arc_cas9_TypeII$strand[i]=="Reverse") {
+    arc_cas9_TypeII$sequence2[i]=revComp(arc_cas9_TypeII$sequence[i])
+  }
+}
+```
+
+```{r}
+load("1.pre_CCF/dir_74.rda")
+lapply(res,\(i)i[["Cas"]])%>%
+  do.call(rbind,.)->bac_74_cas
+
+filter(bac_74_cas,protein=="cas9_TypeII")%>%distinct(seqid,start,end,.keep_all = T)->bac_74_cas9_TypeII
+anyDuplicated(bac_74_cas9_TypeII$Cas_id)
+
+bac_74_cas9_TypeII$sequence2=bac_74_cas9_TypeII$sequence
+for (i in 1:nrow(bac_74_cas9_TypeII)) {
+  if (bac_74_cas9_TypeII$strand[i]=="Reverse") {
+    bac_74_cas9_TypeII$sequence2[i]=revComp(bac_74_cas9_TypeII$sequence[i])
+  }
+}
+
+```
+
+```{r}
+rbind(transmute(arc_cas9_TypeII,Seq=paste0(Cas_id,"|arc"),seq=sequence),
+      transmute(bac_74_cas9_TypeII,Seq=paste0(Cas_id,"|bac"),seq=sequence))%>%
+  write_fasta(file_path = "1.pre_CCF/cas9_TypeII.fasta")
+```
+
+cas9
+```{bash}
+~/miniconda3/envs/qiime2/bin/mafft cas9_TypeII.fasta > cas9_TypeII_aln.fasta
+```
+
+```{r}
+library(ggtree)
+library(ggtreeExtra)
+read.tree("1.pre_CCF/cas9_TypeII_aln2.nwk")->cas9_TypeII_tr
+
+fortify(cas9_TypeII_tr,branch.length = "none")->cas9_TypeII_tr_df
+fortify(cas9_TypeII_tr)->cas9_TypeII_tr_df
+cas9_TypeII_tr_df$label=gsub("'","",cas9_TypeII_tr_df$label)
+anno=data.frame(id=gsub("\\|.*","",cas9_TypeII_tr_df$label),
+                type=gsub(".*\\|","",cas9_TypeII_tr_df$label))%>%na.omit()
+cas9_TypeII_tr_df$label=gsub("\\|.*","",cas9_TypeII_tr_df$label)
+
+ggtree(cas9_TypeII_tr_df)+
+  geom_fruit(
+    data=anno,
+    geom=geom_bar,
+    mapping=aes(y=id, fill=type,x=1),
+    alpha=0.5,pwidth = 0.6,
+           orientation="y",
+           stat="identity",
+    offset = 0
+  )+
+  geom_tiplab(align = T,size=3)+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle("Cas9 TypeII phylogeny")
+ggsave("1.pre_CCF/bac_arc_cas9_TypeII_tree2_length.pdf",height = 10)
+```
+
+有一个网址已经做了represent cas tree，<http://caspedia.org/index.html>
+我们通过accession id去找taxonomy吧
+```{r}
+read_fasta("../data/CasPedia/phylogeny_type2.fasta")->cas_tree
+cas_tree$new_ID=gsub("_1_$",".1",cas_tree$Sequence_ID)
+
+ape::read.tree("../data/CasPedia/phylogeny_type2.nwk")->cas_tree_tr
+cas_tree_tr$tip.label=setNames(cas_tree$new_ID,cas_tree$Sequence_ID)[cas_tree_tr$tip.label]
+
+readxl::read_excel("../data/CasPedia/41467_2020_19344_MOESM7_ESM.xlsx",sheet = 2)->cas_taxon
+venn(list(cas_tree$new_ID,cas_taxon$`Full sequence name`))
+
+filter(cas_taxon,`Full sequence name` %in% cas_tree$new_ID)%>%
+  select(`Full sequence name`,`Taxonomy`)->cas_taxon_sub
+strsplit2(cas_taxon_sub$`Taxonomy`,split = ";")[,3]->cas_taxon_sub$`Phylum`
+View(count(cas_taxon_sub,Phylum))
+cas_taxon_sub$`Phylum`=ifelse(cas_taxon_sub$`Phylum`%in%pull(top_n(count(cas_taxon_sub,Phylum),8,n),Phylum),
+                              cas_taxon_sub$`Phylum`,"Others")
+
+library(ggtree)
+library(ggtreeExtra)
+fortify(cas_tree_tr,
+        branch.length = "none",
+        )%>%mutate(y=max(y)-y)->cas_tree_tr_df
+groupClade(cas_tree_tr_df,c(868,1239,1347),group_name = "Type")->cas_tree_tr_df
+cas_tree_tr_df$Type=factor(cas_tree_tr_df$Type,labels = c("Type IIU","Type IIC","Type IIA","Type IIB"))
+
+p=ggtree(cas_tree_tr_df,layout = "cir",aes(color=Type))+
+  geom_fruit(
+    data=cas_taxon_sub,
+    geom=geom_bar,
+    mapping=aes(y=`Full sequence name`, fill=`Phylum`,x=1),
+    orientation="y",stat="identity",pwidth = 0.05
+  )+
+  # geom_nodelab(aes(label=node),size=1)+
+  scale_color_aaas()+
+  scale_fill_d3()+
+  ggtitle("Cas9 phylogeny")
+rotate_tree(p,180)
+ggsave("1.pre_CCF/cas9_tree2.pdf",height = 10,width = 10)
+```
+
+
+https://www.swjsjz.cn/article/2022/2095-2341/2095-2341-2022-12-4-532.shtml,
+目前用的多的是应该是IIA型，Ⅱ型系统中的代表为CRISPR/Cas9蛋白系统，目前使用的Cas9蛋白主要是源于产脓链球菌（Streptococcus pyogenes）和嗜热链球菌（Streptococcus thermophilus）。Ⅱ型系统发挥功能的过程中Cas1、Cas2、Cas4蛋白负责重复间隔区的建立，且在表达阶段有RNaseⅢ来帮助crRNA的形成，而剩余的工作由Cas9蛋白完成。
+
+
+# Cas phylogeny analysis
+
+### gene tree
+
+每个species挑一个genome，提取一下吧
+```{r}
+readr::read_delim("1.pre_CCF/cas_tree/arc_bac_genome_selected.txt",delim = "\t",
+                  col_names = c("genome","taxid","species","kingdom"))->arc_bac_genome_selected
+arc_bac_genome_selected
+
+load("1.pre_CCF/all_arc_crispr.rda")
+select_crispr(all_arc_crispr,intersect(names(all_arc_crispr),arc_bac_genome_selected$genome))->select_arc_crispr
+save(select_arc_crispr,file = "1.pre_CCF/cas_tree/select_arc_crispr.rda")
+```
+
+```{bash}
+cut -f1 arc_bac_genome_selected.txt >arc_bac_genome_selected
+./search_genomes.R -i arc_bac_genome_selected -o arc_bac_genome_selected_crispr
+```
+
+```{r}
+load("1.pre_CCF/cas_tree/arc_bac_genome_selected_crispr.rda")
+lapply(genome_res,\(i)i[["Cas"]])%>%
+  do.call(rbind,.)->all_selected_bac_cas
+rm(genome_res)
+
+load("1.pre_CCF/all_arc_crispr.rda")
+lapply(all_arc_crispr[filter(arc_bac_genome_selected,kingdom=="Archaea")%>%pull(genome)],\(i)i[["Cas"]])%>%
+  do.call(rbind,.)->all_selected_arc_cas
+all_selected_cas=rbind(all_selected_arc_cas,all_selected_bac_cas) 
+
+revComp=function(i){
+  library(Biostrings)
+  DNAString(i)%>%reverseComplement()%>%as.character()
+}
+
+#cas1
+filter(all_selected_cas,type!="CAS",grepl("cas[1]_",protein))->all_selected_cas1
+all_selected_cas1$id=paste0(all_selected_cas1$genome,"|",all_selected_cas1$start,"-",all_selected_cas1$end)
+all_selected_cas1$sequence2=all_selected_cas1$sequence
+for(i in 1:nrow(all_selected_cas1)){
+  if(all_selected_cas1$strand[i]=="Reverse"){
+    all_selected_cas1$sequence2[i]=revComp(all_selected_cas1$sequence[i])
+  }
+}
+anyDuplicated(all_selected_cas1$id)
+all_selected_cas1=all_selected_cas1[!duplicated(all_selected_cas1$id),]
+write_fasta(all_selected_cas1[,c("id","sequence2")],file_path = "1.pre_CCF/cas_tree/all_selected_cas1.fasta")
+#cas2
+filter(all_selected_cas,type!="CAS",grepl("cas[2]_",protein))->all_selected_cas2
+all_selected_cas2$id=paste0(all_selected_cas2$genome,"|",all_selected_cas2$start,"-",all_selected_cas2$end)
+all_selected_cas2$sequence2=all_selected_cas2$sequence
+for(i in 1:nrow(all_selected_cas2)){
+  if(all_selected_cas2$strand[i]=="Reverse"){
+    all_selected_cas2$sequence2[i]=revComp(all_selected_cas2$sequence[i])
+  }
+}
+anyDuplicated(all_selected_cas2$id)
+all_selected_cas2=all_selected_cas2[!duplicated(all_selected_cas2$id),]
+write_fasta(all_selected_cas2[,c("id","sequence2")],file_path = "1.pre_CCF/cas_tree/all_selected_cas2.fasta")
+#cas4
+filter(all_selected_cas,type!="CAS",grepl("cas[4]_",protein))->all_selected_cas4
+all_selected_cas4$id=paste0(all_selected_cas4$genome,"|",all_selected_cas4$start,"-",all_selected_cas4$end)
+all_selected_cas4$sequence2=all_selected_cas4$sequence
+for(i in 1:nrow(all_selected_cas4)){
+  if(all_selected_cas4$strand[i]=="Reverse"){
+    all_selected_cas4$sequence2[i]=revComp(all_selected_cas4$sequence[i])
+  }
+}
+anyDuplicated(all_selected_cas4$id)
+all_selected_cas4=all_selected_cas4[!duplicated(all_selected_cas4$id),]
+write_fasta(all_selected_cas4[,c("id","sequence2")],file_path = "1.pre_CCF/cas_tree/all_selected_cas4.fasta")
+#cas9
+filter(all_selected_cas,type!="CAS",grepl("cas[9]_",protein))->all_selected_cas9
+all_selected_cas9$id=paste0(all_selected_cas9$genome,"|",all_selected_cas9$start,"-",all_selected_cas9$end)
+all_selected_cas9$sequence2=all_selected_cas9$sequence
+for(i in 1:nrow(all_selected_cas9)){
+  if(all_selected_cas9$strand[i]=="Reverse"){
+    all_selected_cas9$sequence2[i]=revComp(all_selected_cas9$sequence[i])
+  }
+}
+anyDuplicated(all_selected_cas9$id)
+all_selected_cas9=all_selected_cas9[!duplicated(all_selected_cas9$id),]
+write_fasta(all_selected_cas9[,c("id","sequence2")],file_path = "1.pre_CCF/cas_tree/all_selected_cas9.fasta")
+#cas5
+filter(all_selected_cas,type!="CAS",grepl("cas5",protein))->all_selected_cas5
+all_selected_cas5$id=paste0(all_selected_cas5$genome,"|",all_selected_cas5$start,"-",all_selected_cas5$end)
+all_selected_cas5$sequence2=all_selected_cas5$sequence
+for(i in 1:nrow(all_selected_cas5)){
+  if(all_selected_cas5$strand[i]=="Reverse"){
+    all_selected_cas5$sequence2[i]=revComp(all_selected_cas5$sequence[i])
+  }
+}
+anyDuplicated(all_selected_cas5$id)
+all_selected_cas5=all_selected_cas5[!duplicated(all_selected_cas5$id),]
+write_fasta(all_selected_cas5[,c("id","sequence2")],file_path = "1.pre_CCF/cas_tree/all_selected_cas5.fasta")
+#cas7
+filter(all_selected_cas,type!="CAS",grepl("cas7",protein))->all_selected_cas7
+all_selected_cas7$id=paste0(all_selected_cas7$genome,"|",all_selected_cas7$start,"-",all_selected_cas7$end)
+all_selected_cas7$sequence2=all_selected_cas7$sequence
+for(i in 1:nrow(all_selected_cas7)){
+  if(all_selected_cas7$strand[i]=="Reverse"){
+    all_selected_cas7$sequence2[i]=revComp(all_selected_cas7$sequence[i])
+  }
+}
+anyDuplicated(all_selected_cas7$id)
+all_selected_cas7=all_selected_cas7[!duplicated(all_selected_cas7$id),]
+write_fasta(all_selected_cas7[,c("id","sequence2")],file_path = "1.pre_CCF/cas_tree/all_selected_cas7.fasta")
+
+save(all_selected_cas1,all_selected_cas2,all_selected_cas4,all_selected_cas9,all_selected_cas5,all_selected_cas7,
+     file="1.pre_CCF/cas_tree/all_selected_cas.rda")
+```
+
+```{bash}
+# ~/work/crispr
+for i in {1,2,4,9,5,7}; do
+  # seqkit translate all_selected_cas${i}.fasta>all_selected_cas${i}.faa
+  ~/miniconda3/envs/qiime2/bin/mafft all_selected_cas${i}.fasta > all_selected_cas${i}_aln.fasta
+  ~/miniconda3/envs/genome/bin/fasttree all_selected_cas${i}_aln.fasta > all_selected_cas${i}_tree.nwk
+done
+
+for i in {1,2,4,9,5,7}; do
+  # seqkit translate all_selected_cas${i}.fasta>all_selected_cas${i}.faa
+  ~/miniconda3/envs/qiime2/bin/mafft all_selected_cas${i}.faa > all_selected_cas${i}_aln.faa
+  ~/miniconda3/envs/genome/bin/fasttree all_selected_cas${i}_aln.faa > all_selected_cas${i}_aa_tree.nwk
+done
+```
+
+```{r}
+library(ggtree)
+library(ggtreeExtra)
+read.tree("1.pre_CCF/cas_tree/all_selected_cas1_tree.nwk")->cas_tree_cas1
+
+fortify(cas_tree_cas1)->cas_tree_cas1_df
+cas_tree_cas1_df$genome=gsub("\\|.*","",cas_tree_cas1_df$label)
+cas_tree_cas1_df=left_join(cas_tree_cas1_df,all_selected_cas1[,c("id","subtype")],by=c("label"="id"))
+
+anno2=right_join(cas_tree_cas1_df[,c("label","genome")],arc_bac_genome_selected[,c("genome","kingdom")])
+anno2$Pos=as.factor(anno2$kingdom)%>%as.numeric()
+
+legends=levels(factor(cas_tree_cas1_df$subtype))
+p=ggtree(cas_tree_cas1_df,layout = "cir",mapping = aes(color=subtype),size=0.2)+
+  geom_tiplab(aes(label=NA, col=subtype), hjust=2, align=TRUE, linesize=0.1,show.legend=F)+
+  geom_fruit(
+    data=anno2,
+    geom=geom_tile,
+    mapping=aes(y=label, fill=kingdom,x=Pos),
+    pwidth = 0.03,color=NA
+  )+
+  scale_color_pc(palette = "col2",n = 14,na.value="black",label = c(legends,""))+
+  guides(colour = guide_legend(
+    override.aes = list(linewidth = 2, 
+                        linetype = setNames(c(rep(1, 14), NA), legends)
+                        ))
+    )+
+  # geom_tiplab(align = T,size=3)+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle("Cas1 phylogeny")
+ggsave("1.pre_CCF/cas_tree/all_selected_cas1_tree.pdf",plot = p,width = 10)
+
+cas_tree_cas1_df$label=ifelse(cas_tree_cas1_df$isTip,cas_tree_cas1_df$label,cas_tree_cas1_df$node)
+ggtree(cas_tree_cas1_df,layout = "cir",mapping = aes(color=subtype),size=0.2)+
+  geom_nodelab(size=0.2,aes(label=label))
+ggsave("1.pre_CCF/cas_tree/tmp.pdf",width = 10)
+
+ape::drop.tip(cas_tree_cas1,tidytree::offspring(cas_tree_cas1_df,9173)%>%pull(node))->cas_tree_cas1_sub
+fortify(cas_tree_cas1_sub)->cas_tree_cas1_sub_df
+cas_tree_cas1_sub_df=left_join(cas_tree_cas1_sub_df,all_selected_cas1[,c("id","subtype")],by=c("label"="id"))
+
+p2=ggtree(cas_tree_cas1_sub_df,layout = "cir",mapping = aes(color=subtype),size=0.2)+
+  geom_tiplab(aes(label=NA, col=subtype), hjust=2, align=TRUE, linesize=0.1,show.legend=F)+
+  geom_fruit(
+    data=anno2,
+    geom=geom_tile,
+    mapping=aes(y=label, fill=kingdom,x=Pos),
+    pwidth = 0.03,color=NA
+  )+
+  scale_color_pc(palette = "col2",n = 14,na.value="black",label = c(legends,""))+
+  guides(colour = guide_legend(
+    override.aes = list(linewidth = 2, 
+                        linetype = setNames(c(rep(1, 14), NA), legends)
+                        ))
+    )+
+  # geom_tiplab(align = T,size=3)+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle("Cas1 phylogeny")
+ggsave("1.pre_CCF/cas_tree/all_selected_cas1_tree2.pdf",plot = p2,width = 10)
+
+ape::drop.tip(cas_tree_cas1_sub,tidytree::offspring(cas_tree_cas1_df,7132)%>%pull(node))->cas_tree_cas1_sub2
+fortify(cas_tree_cas1_sub2)->cas_tree_cas1_sub2_df
+cas_tree_cas1_sub2_df=left_join(cas_tree_cas1_sub2_df,all_selected_cas1[,c("id","subtype")],by=c("label"="id"))
+
+p3=ggtree(cas_tree_cas1_sub2_df,layout = "cir",mapping = aes(color=subtype),size=0.2)+
+  geom_tiplab(aes(label=NA, col=subtype), hjust=2, align=TRUE, linesize=0.1,show.legend=F)+
+  geom_fruit(
+    data=anno2,
+    geom=geom_tile,
+    mapping=aes(y=label, fill=kingdom,x=Pos),
+    pwidth = 0.03,color=NA
+  )+
+  scale_color_pc(palette = "col2",n = 14,na.value="black",label = c(legends,""))+
+  guides(colour = guide_legend(
+    override.aes = list(linewidth = 2, 
+                        linetype = setNames(c(rep(1, 14), NA), legends)
+                        ))
+    )+
+  # geom_tiplab(align = T,size=3)+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle("Cas1 phylogeny")
+ggsave("1.pre_CCF/cas_tree/all_selected_cas1_tree3.pdf",plot = p3,width = 10)
+
+```
+
+
+```{r}
+library(ggtree)
+library(ggtreeExtra)
+load("1.pre_CCF/cas_tree/all_selected_cas.rda")
+lapply(ls(pattern = "all_selected_cas\\d"),\(i){get(i)%>%.$subtype%>%unique()})%>%unlist%>%unique()->all_subtypes
+get_cols(all_subtypes,"col2")->all_subtypes_col
+
+cas=c(1,2,4,9,5,7)[6]
+for (cas in c(1,2,4,9,5,7)) {
+read.tree(paste0("1.pre_CCF/cas_tree/all_selected_cas",cas,"_tree.nwk"))->cas_tree_cas4
+all_selected_cas_tmp=get(paste0("all_selected_cas",cas))
+
+fortify(cas_tree_cas4)->cas_tree_cas4_df
+cas_tree_cas4_df$genome=gsub("\\|.*","",cas_tree_cas4_df$label)
+cas_tree_cas4_df=left_join(cas_tree_cas4_df,all_selected_cas_tmp[,c("id","subtype")],by=c("label"="id"))
+
+anno2=right_join(cas_tree_cas4_df[,c("label","genome")],arc_bac_genome_selected[,c("genome","kingdom")])
+anno2$Pos=as.factor(anno2$kingdom)%>%as.numeric()
+
+legends=levels(factor(cas_tree_cas4_df$subtype))
+p=ggtree(cas_tree_cas4_df,layout = "cir",mapping = aes(color=subtype),size=0.2)+
+  geom_tiplab(aes(label=NA, col=subtype), hjust=2, align=TRUE, linesize=0.1,show.legend=F)+
+  geom_fruit(
+    data=anno2,
+    geom=geom_tile,
+    mapping=aes(y=label, fill=kingdom,x=Pos),
+    pwidth = 0.03,color=NA
+  )+
+  scale_color_manual(values = all_subtypes_col,na.value="black",label = c(legends,""))+
+  guides(colour = guide_legend(
+    override.aes = list(linewidth = 2, 
+                        linetype = setNames(c(rep(1, length(legends)), NA), legends)
+                        ))
+    )+
+  # geom_tiplab(align = T,size=3)+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle(paste0("Cas",cas," phylogeny"))
+ggsave(paste0("1.pre_CCF/cas_tree/all_selected_cas",cas,"_tree.pdf"),plot = p,width = 10)
+}
+```
+
+### protein tree
+```{r}
+for (cas in c(1,2,4,9,5,7)) {
+read.tree(paste0("1.pre_CCF/cas_tree/all_selected_cas",cas,"_aa_tree.nwk"))->cas_tree_cas4
+all_selected_cas_tmp=get(paste0("all_selected_cas",cas))
+
+fortify(cas_tree_cas4)->cas_tree_cas4_df
+cas_tree_cas4_df$genome=gsub("\\|.*","",cas_tree_cas4_df$label)
+cas_tree_cas4_df=left_join(cas_tree_cas4_df,all_selected_cas_tmp[,c("id","subtype")],by=c("label"="id"))
+
+anno2=right_join(cas_tree_cas4_df[,c("label","genome")],arc_bac_genome_selected[,c("genome","kingdom")])
+anno2$Pos=as.factor(anno2$kingdom)%>%as.numeric()
+
+legends=levels(factor(cas_tree_cas4_df$subtype))
+p=ggtree(cas_tree_cas4_df,layout = "cir",mapping = aes(color=subtype),size=0.2)+
+  geom_tiplab(aes(label=NA, col=subtype), hjust=2, align=TRUE, linesize=0.1,show.legend=F)+
+  geom_fruit(
+    data=anno2,
+    geom=geom_tile,
+    mapping=aes(y=label, fill=kingdom,x=Pos),
+    pwidth = 0.03,color=NA
+  )+
+  scale_color_manual(values = all_subtypes_col,na.value="black",label = c(legends,""))+
+  guides(colour = guide_legend(
+    override.aes = list(linewidth = 2, 
+                        linetype = setNames(c(rep(1, length(legends)), NA), legends)
+                        ))
+    )+
+  # geom_tiplab(align = T,size=3)+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle(paste0("Cas",cas," phylogeny"))
+ggsave(paste0("1.pre_CCF/cas_tree/all_selected_cas",cas,"_aa_tree.pdf"),plot = p,width = 10)
+}
+```
+
+
+### 16s tree
+
+```{bash}
+for i in `cat arc_genome_selected`
+do
+gunzip /data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/archaea/${i}.gz -c > test.fna
+~/miniconda3/envs/waste/bin/barrnap --kingdom arc --threads 4 --outseq r16s/${i}.fa test.fna > test.gff3
+rm test.fna.fai
+done
+for i in `cat bac_genome_selected`
+do
+gunzip /data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/bacteria/${i}.gz -c > test.fna
+~/miniconda3/envs/waste/bin/barrnap --kingdom bac --threads 4 --outseq r16s/${i}.fa test.fna > test.gff3
+rm test.fna.fai
+done
+```
+
+```{r}
+library(dplyr)
+library(pcutils)
+list.files(".",pattern = "*.fa")->all_16s_files
+
+all_fasta=lapply(all_16s_files,\(i)read_fasta(i))
+names(all_fasta)=gsub("\\.fa","",all_16s_files)
+all_fasta=lapply(names(all_fasta),\(i)data.frame(genome=i,all_fasta[[i]]))
+all_fasta_df=do.call(rbind,all_fasta)
+all_fasta_df$type=gsub("::.*","",all_fasta_df$Sequence_ID)
+all_fasta_df$strand=ifelse(grepl("\\(\\+\\)",all_fasta_df$Sequence_ID),"+","-")
+
+filter(all_fasta_df,type=="16S_rRNA")%>%distinct(genome,.keep_all = T)->all_16s_df
+write_fasta(all_16s_df[,c("genome","Sequence")],file_path = "../all_selected_16s.fa")
+
+revComp=function(i){
+  library(Biostrings)
+  DNAString(i)%>%reverseComplement()%>%as.character()
+}
+
+all_16s_df$Sequence2=all_16s_df$Sequence
+for (i in seq_len(nrow(all_16s_df))) {
+  if (all_16s_df$strand[i]=="-") {
+    all_16s_df$Sequence2[i]=revComp(all_16s_df$Sequence[i])
+  }
+}
+write_fasta(all_16s_df[,c("genome","Sequence2")],file_path = "../all_selected_16s_com.fa")
+save(all_16s_df,file = "../all_selected_16s_df.rda")
+```
+
+```{bash}
+~/miniconda3/envs/qiime2/bin/mafft all_selected_16s.fa > all_selected_16s_aln.fa
+~/miniconda3/envs/genome/bin/fasttree all_selected_16s_aln.fa > all_selected_16s.nwk
+~/miniconda3/envs/qiime2/bin/mafft all_selected_16s_com.fa > all_selected_16s_com_aln.fa
+~/miniconda3/envs/genome/bin/fasttree all_selected_16s_com_aln.fa > all_selected_16s_com.nwk
+```
+
+```{r}
+library(ape)
+library(ggtree)
+library(ggtreeExtra)
+
+read.tree("1.pre_CCF/cas_tree/all_selected_16s.nwk")->r16s_tree
+root(r16s_tree,outgroup = "GCA_000008085.1_ASM808v1_genomic.fna")->r16s_tree2
+
+fortify(r16s_tree2)->r16s_tree_df
+r16s_tree_df$genome=r16s_tree_df$label
+
+all_selected_cas_anno=distinct(all_selected_cas[,c("genome","type","subtype")])
+anyDuplicated(all_selected_cas_anno$genome)
+r16s_tree_df=left_join(r16s_tree_df,all_selected_cas_anno[,c("genome","subtype")],by=c("label"="genome"))
+
+anno2=right_join(r16s_tree_df[,c("label","genome")],arc_bac_genome_selected[,c("genome","kingdom")])
+anno2$Pos=as.factor(anno2$kingdom)%>%as.numeric()
+
+p=ggtree(r16s_tree_df,layout = "cir",size=0.2)+
+  #geom_tiplab(aes(label=NA, col=subtype), hjust=2, align=TRUE, linesize=0.1,show.legend=F)+
+  geom_fruit(
+    data=anno2,
+    geom=geom_tile,
+    mapping=aes(y=label, fill=kingdom,x=Pos),
+    pwidth = 0.03,color=NA
+  )+
+  scale_color_manual(values = all_subtypes_col,na.value="black",label = c(legends,""))+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle(paste0("16S rDNA phylogeny"))
+ggsave(paste0("1.pre_CCF/cas_tree/all_selected_16s.pdf"),plot = p,width = 10)
+
+legends=levels(factor(r16s_tree_df$subtype))
+p=ggtree(r16s_tree_df,layout = "cir",mapping = aes(color=subtype),size=0.2)+
+  geom_tiplab(aes(label=NA, col=subtype), hjust=2, align=TRUE, linesize=0.1,show.legend=F)+
+  geom_fruit(
+    data=anno2,
+    geom=geom_tile,
+    mapping=aes(y=label, fill=kingdom,x=Pos),
+    pwidth = 0.03,color=NA
+  )+
+  scale_color_manual(values = all_subtypes_col,na.value="black",label = c(legends,""))+
+  guides(colour = guide_legend(
+    override.aes = list(linewidth = 2, 
+                        linetype = setNames(c(rep(1, length(legends)), NA), legends)
+                        ))
+    )+
+  scale_fill_manual(values = c("red3","#1f78b4"),name="Domain")+
+  ggtitle(paste0("16S rDNA phylogeny"))
+ggsave(paste0("1.pre_CCF/cas_tree/all_selected_16s_2.pdf"),plot = p,width = 10)
+
+```
+
+### tree-topo
+
+```{r}
+cas_tree_cas_ls=list()
+for (cas in c("1",2,4,9,5,7)) {
+  read.tree(paste0("1.pre_CCF/cas_tree/all_selected_cas",cas,"_tree.nwk"))->cas_tree_cas1
+  dup_name=cas_tree_cas1$tip.label[duplicated(gsub("\\|.*","",cas_tree_cas1$tip.label))]
+  cas_tree_cas1=drop.tip(cas_tree_cas1,dup_name)
+  cas_tree_cas1$tip.label=gsub("\\|.*","",cas_tree_cas1$tip.label)
+  cas_tree_cas1=drop.tip(cas_tree_cas1,setdiff(cas_tree_cas1$tip.label,r16s_tree$tip.label))
+  cas_tree_cas_ls[[cas]]=cas_tree_cas1
+}
+save(cas_tree_cas_ls,r16s_tree,file = "1.pre_CCF/cas_tree/cas_tree_cas_ls_gene.rda")
+cas_tree_cas_ls=list()
+for (cas in c("1",2,4,9,5,7)) {
+  read.tree(paste0("1.pre_CCF/cas_tree/all_selected_cas",cas,"_aa_tree.nwk"))->cas_tree_cas1
+  dup_name=cas_tree_cas1$tip.label[duplicated(gsub("\\|.*","",cas_tree_cas1$tip.label))]
+  cas_tree_cas1=drop.tip(cas_tree_cas1,dup_name)
+  cas_tree_cas1$tip.label=gsub("\\|.*","",cas_tree_cas1$tip.label)
+  cas_tree_cas1=drop.tip(cas_tree_cas1,setdiff(cas_tree_cas1$tip.label,r16s_tree$tip.label))
+  cas_tree_cas_ls[[cas]]=cas_tree_cas1
+}
+save(cas_tree_cas_ls,r16s_tree,file = "1.pre_CCF/cas_tree/cas_tree_cas_ls_protein.rda")
+
+#比较树的相似性：
+#https://blog.sciencenet.cn/blog-508298-1173976.html
+
+venn(list(cas_tree_cas1$tip.label,r16s_tree$tip.label,arc_bac_genome_selected$genome))
+
+dist.topo2=function(tree1,tree2){
+  tr1=drop.tip(tree1,setdiff(tree1$tip.label,tree2$tip.label))
+  tr2=drop.tip(tree2,setdiff(tree2$tip.label,tree1$tip.label))
+  dist.topo(tr1, tr2)
+}
+# random_dist.topo=function(tree1,n=100){
+#   tmp_res=vector("numeric",n)
+#   for (i in seq_len(n)) {
+#     tmp=tree1
+#     tmp$tip.label=sample(tmp$tip.label,length(tmp$tip.label))
+#     tmp_res[i]=dist.topo(tmp, tree1)
+#   }
+#   tmp_res
+# }
+
+dist.topo2(cas_tree_cas1, r16s_tree)
+dist.topo(rmtopology(2,length(cas_tree_cas1$tip.label)))
+```
+
+```{r}
+library(paco)
+data(gopherlice)
+require(ape)
+gdist <- cophenetic(gophertree)
+ldist <- cophenetic(licetree)
+D <- prepare_paco_data(gdist, ldist, gl_links)
+D <- add_pcoord(D)
+D <- PACo(D, nperm=999, seed=42, method="r0")
+print(D$gof)
+
+data(gopher.D)
+data(lice.D)
+data(HP.links)
+
+res <- parafit(gopher.D, lice.D, HP.links, nperm=99, test.links=TRUE)
+
+library(phytools)
+## load data from Lopez-Vaamonde et al. (2001)
+data(wasp.trees)
+data(wasp.data)
+## test for cospeciation
+wasp.cosp<-cospeciation(wasp.trees[[1]],wasp.trees[[2]],
+    assoc=wasp.data)
+print(wasp.cosp)
+plot(wasp.cosp)
+title(main=paste("Simulated distribution of RF distances\n",
+    "between unassociated trees"),font.main=3)
+```
+
+
+```{r}
+library(paco)
+require(ape)
+r16s_tree_ls=gl_links_ls=list()
+for (cas in c("1",2,4,9,5,7)[1]) {
+  tmp=data.frame(a=cas_tree_cas_ls[[cas]]$tip.label,b=gsub("\\|.*","",cas_tree_cas_ls[[cas]]$tip.label),c=1)
+  tmp_com=intersect(tmp$b,r16s_tree$tip.label)
+  #tmp_com=sample(tmp_com,100)
+  tmp=dplyr::filter(tmp,b%in%tmp_com)
+  cas_tree_cas_ls[[cas]]=drop.tip(cas_tree_cas_ls[[cas]],
+                                  setdiff(cas_tree_cas_ls[[cas]]$tip.label,tmp$a))
+  r16s_tree_ls[[cas]]=drop.tip(r16s_tree,
+                                  setdiff(r16s_tree$tip.label,tmp$b))  
+  tmp2=reshape2::acast(tmp,a~b)
+  tmp2[!is.na(tmp2)]=1
+  tmp2[is.na(tmp2)]=0
+  gl_links_ls[[cas]]=tmp2
+}
+
+gdist <- cophenetic(cas_tree_cas_ls[[cas]])
+ldist <- cophenetic(r16s_tree_ls[[cas]])
+D <- prepare_paco_data(gdist, ldist, gl_links_ls[[cas]])
+print("add_pcoord")
+D <- add_pcoord(D)
+print("PACo")
+D <- PACo(D, nperm=10, seed=42, method="r0")
+print(D$gof)
+print("done")
+save(D,file = "test_cas1_D.rda")
+```
+
+### tree-box
+
+```{r}
+library(ape)
+# 细菌Cas 蛋白和古菌Cas 蛋白的距离 ，每个距离是一个point。这样的距离会有百万个点，这里采样了1000个画。因为16S没有蛋白树，所以这里16S RNA距离和其他蛋白距离差很多
+readr::read_delim("1.pre_CCF/cas_tree/arc_bac_genome_selected.txt",delim = "\t",
+                  col_names = c("genome","taxid","species","kingdom"))->arc_bac_genome_selected
+
+load("1.pre_CCF/cas_tree/cas_tree_cas_ls_protein.rda")
+cas_tree_cas_ls[["16s"]]=r16s_tree
+
+gl_links_melt=list()
+for (cas in c("1",2,4,9,5,7,"16s")) {
+  cas_tree_cas1=cas_tree_cas_ls[[cas]]
+  cophenetic(cas_tree_cas1)->gdist
+  tmp_bac=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Bacteria")%>%pull(genome))
+  tmp_arc=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Archaea")%>%pull(genome))
+  gdist[tmp_arc,tmp_bac]->gl_links
+  melt(gl_links)->gl_links_melt[[cas]]
+}
+
+lapply(gl_links_melt, nrow)
+lapply(gl_links_melt, \(i)median(i$value))
+
+lapply(gl_links_melt, \(i)sample(i$value,999))->box_dat
+data.frame(group=rep(c("cas1","cas2","cas4","cas9","cas5","cas7","16S"),each=999),value=unlist(box_dat))->box_dat2
+group_by(box_dat2,group)%>%summarise(median=median(value))
+
+group_box(box_dat2["value"],"group",box_dat2,alpha = T)+
+  mytheme+
+  scale_color_d3()+
+  labs(y="Distance between bacteria and archaea")+
+  guides(color=guide_legend(title="Gene"))
+ggsave("1.pre_CCF/cas_tree/Distance_between_bac_and_arc.pdf",width=6,height=4)
+```
+
+```{r}
+#忽略真实的branch.length，这个好像也不合理，真正蛋白之间的距离趋势全变了，这个图里的距离完全被树的节点数量影响了，节点越多距离就越大了。应该每两颗树的比较都要把交集的节点取出来
+cas_tree_cas_ls2=cas_tree_cas_ls
+
+gl_links_melt2=list()
+for (cas in c("1",2,4,9,5,7,"16s")) {
+  cas_tree_cas1=cas_tree_cas_ls2[[cas]]
+  cas_tree_cas1$edge.length=rep(1,nrow(cas_tree_cas1$edge))
+  cophenetic(cas_tree_cas1)->gdist
+  tmp_bac=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Bacteria")%>%pull(genome))
+  tmp_arc=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Archaea")%>%pull(genome))
+  gdist[tmp_arc,tmp_bac]->gl_links
+  melt(gl_links)->gl_links_melt2[[cas]]
+}
+
+lapply(gl_links_melt2, \(i)median(i$value))
+
+lapply(gl_links_melt2, \(i)sample(i$value,999))->box_dat
+data.frame(group=rep(c("cas1","cas2","cas4","cas9","cas5","cas7","16S"),each=999),value=unlist(box_dat))->box_dat2
+group_by(box_dat2,group)%>%summarise(median=median(value))
+
+group_box(box_dat2["value"],"group",box_dat2,alpha = T)+
+  mytheme+
+  scale_color_d3()+
+  labs(y="Distance between bacteria and archaea")+
+  guides(color=guide_legend(title="Gene"))
+ggsave("1.pre_CCF/cas_tree/Distance_between_bac_and_arc2.pdf",width=6,height=4)
+```
+
+```{r}
+#关注archaea即可，计算每个archaea-archaea距离/archaea-others距离
+cas_tree_cas_ls2=cas_tree_cas_ls
+gl_links_melt2=list()
+for (cas in c("1",2,4,9,5,7,"16s")) {
+  cas_tree_cas1=cas_tree_cas_ls2[[cas]]
+  cophenetic(cas_tree_cas1)->gdist
+  tmp_bac=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Bacteria")%>%pull(genome))
+  tmp_arc=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Archaea")%>%pull(genome))
+  gdist[tmp_arc,tmp_bac]->gl_links
+  gdist[tmp_arc,tmp_arc]->gl_links2
+  apply(gl_links,1,mean)->a2b_dis
+  apply(gl_links2,1,mean)->a2a_dis
+  data.frame(genome=names(a2a_dis),a2a_dis=a2a_dis,a2b_dis=a2b_dis)->gl_links_melt2[[cas]]
+}
+
+lapply(gl_links_melt2, \(i)mutate(i,ratio=a2a_dis/a2b_dis))->gl_links_melt2
+
+names(gl_links_melt2)=c("cas1","cas2","cas4","cas9","cas5","cas7","16S")
+lapply(names(gl_links_melt2), \(i)data.frame(group=i,gl_links_melt2[[i]]))%>%do.call(rbind,.)->box_dat
+
+save(box_dat,file="1.pre_CCF/cas_tree/Distance_between_bac_and_arc3.RData")
+
+group_by(box_dat,group)%>%summarise(median=median(ratio))
+
+group_box(box_dat["ratio"],"group",filter(box_dat,group!="cas9"),alpha = T)+
+  mytheme+
+  scale_color_d3()+
+  geom_hline(yintercept=1,linetype="dashed")+
+  labs(y="(Archaea-Archaea)/(Archaea-Bacteria)")+
+  ylim(0,1.7)+
+  guides(color=guide_legend(title="Gene"))
+
+ggsave("1.pre_CCF/cas_tree/Distance_between_bac_and_arc3.pdf",width=5.5,height=4)
+```
+
+```{r}
+#两两配对检验
+Reduce(intersect,list(gl_links_melt2$cas1$genome,gl_links_melt2$cas2$genome,gl_links_melt2$`16S`$genome))->com_id
+
+lapply(gl_links_melt2[c(1,2,7)], \(i)i[com_id,])->gl_links_melt3
+lapply(names(gl_links_melt3), \(i)data.frame(group=i,gl_links_melt3[[i]]))%>%do.call(rbind,.)->box_dat
+
+group_box(box_dat["ratio"],"group",box_dat,alpha = T,paired = T,paired_line_param = list(alpha=0.3))+
+  mytheme+
+  scale_color_d3()+
+  labs(y="(Archaea-Archaea)/(Archaea-Bacteria)")+
+  guides(color=guide_legend(title="Gene"))
+
+#两两配对检验
+Reduce(intersect,list(gl_links_melt2$cas5$genome,gl_links_melt2$cas7$genome,gl_links_melt2$`16S`$genome))->com_id
+
+lapply(gl_links_melt2[c(5,6,7)], \(i)i[com_id,])->gl_links_melt3
+lapply(names(gl_links_melt3), \(i)data.frame(group=i,gl_links_melt3[[i]]))%>%do.call(rbind,.)->box_dat
+
+group_box(box_dat["ratio"],"group",box_dat,alpha = T,paired = T,paired_line_param = list(alpha=0.3))+
+  mytheme+
+  scale_color_d3()+
+  labs(y="(Archaea-Archaea)/(Archaea-Bacteria)")+
+  guides(color=guide_legend(title="Gene"))
+
+#两两配对检验
+Reduce(intersect,list(gl_links_melt2$cas4$genome,gl_links_melt2$`16S`$genome))->com_id
+
+lapply(gl_links_melt2[c(3,7)], \(i)i[com_id,])->gl_links_melt3
+lapply(names(gl_links_melt3), \(i)data.frame(group=i,gl_links_melt3[[i]]))%>%do.call(rbind,.)->box_dat
+
+group_box(box_dat["ratio"],"group",box_dat,alpha = T,paired = T,paired_line_param = list(alpha=0.3))+
+  mytheme+
+  scale_color_d3()+
+  labs(y="(Archaea-Archaea)/(Archaea-Bacteria)")+
+  guides(color=guide_legend(title="Gene"))
+
+
+Reduce(intersect,lapply(gl_links_melt2[-4],\(i)i$genome))->com_id
+lapply(gl_links_melt2[-4], \(i)i[com_id,])->gl_links_melt3
+lapply(names(gl_links_melt3), \(i)data.frame(group=i,gl_links_melt3[[i]]))%>%do.call(rbind,.)->box_dat
+
+group_by(box_dat,group)%>%summarise(median=median(ratio))
+
+group_box(box_dat["ratio"],"group",box_dat,alpha = T,paired = T,paired_line_param = list(alpha=0.3))+
+  mytheme+
+  scale_color_d3()+
+  labs(y="(Archaea-Archaea)/(Archaea-Bacteria)")+
+  guides(color=guide_legend(title="Gene"))
+
+ggsave("1.pre_CCF/cas_tree/Distance_between_bac_and_arc4.pdf",width=5.5,height=4)
+```
+
+### paird
+
+DNA/protein 不完全一致
+
+```{r}
+load("1.pre_CCF/cas_tree/arc_bac_genome_selected_crispr.rda")
+load("1.pre_CCF/all_arc_crispr.rda")
+
+library(ape)
+#挑一下cas树上最近的arc-bac genome关系，然后去看这些genome的array spacers length分布有没有关系。
+load("1.pre_CCF/cas_tree/cas_tree_cas_ls_gene.rda")
+
+gl_links_melt3=list()
+for (cas in c("1",2,4,9,5,7)) {
+  cas_tree_cas1=cas_tree_cas_ls[[cas]]
+  cophenetic(cas_tree_cas1)->gdist
+  tmp_bac=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Bacteria")%>%pull(genome))
+  tmp_arc=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Archaea")%>%pull(genome))
+  gdist[tmp_arc,tmp_bac]->gl_links
+  apply(gl_links,1,which.min)->a2b_min
+  data.frame(arc_genome=names(a2b_min),bac_genome=colnames(gl_links)[a2b_min],dis=apply(gl_links,1,min))->gl_links_melt3[[cas]]
+}
+
+selected_cas_arc_bac_paried=gl_links_melt3
+```
+
+```{r}
+lapply(names(selected_cas_arc_bac_paried), \(i)data.frame(group=paste0("Cas",i),selected_cas_arc_bac_paried[[i]]))%>%
+  do.call(rbind,.)->selected_cas_arc_bac_paried_df
+
+select_crispr(all_arc_crispr,unique(selected_cas_arc_bac_paried_df$arc_genome))->arc_crispr_paried
+select_crispr(genome_res,unique(selected_cas_arc_bac_paried_df$bac_genome))->bac_crispr_paried
+
+sapply(arc_crispr_paried,\(i)i$Cas[1,"subtype"])->tmp
+arc_cas_type=data.frame(arc_genome=names(tmp),arc_subtype=tmp)
+sapply(bac_crispr_paried,\(i)i$Cas[1,"subtype"])->tmp
+bac_cas_type=data.frame(bac_genome=names(tmp),bac_subtype=tmp)
+selected_cas_arc_bac_paried_df=Reduce(left_join,list(selected_cas_arc_bac_paried_df,arc_cas_type,bac_cas_type))
+
+table(selected_cas_arc_bac_paried_df$bac_subtype==selected_cas_arc_bac_paried_df$arc_subtype)
+
+write.csv(selected_cas_arc_bac_paried_df,
+          "1.pre_CCF/cas_tree/selected_cas_arc_bac_paried_gene.csv",row.names = F)
+```
+
+spacer length
+
+```{r}
+lapply(arc_crispr_paried,\(i){
+  get_spacer_fa(i,evidence_level = 4)%>%pull(sequence)%>%nchar()
+})->arc_spacer_length
+
+lapply(bac_crispr_paried,\(i){
+  get_spacer_fa(i,evidence_level = 4)%>%pull(sequence)%>%nchar()
+})->bac_spacer_length
+
+apply(selected_cas_arc_bac_paried_df,1,\(i)ks.test(arc_spacer_length[[i[2]]],bac_spacer_length[[i[3]]]))->ks_test_res
+sapply(ks_test_res,\(i)i$p.value)->selected_cas_arc_bac_paried_df$ks_p_value
+
+save(selected_cas_arc_bac_paried_df,
+     arc_spacer_length,bac_spacer_length,
+     file = "1.pre_CCF/cas_tree/selected_cas_arc_bac_paried.rda")
+
+table(selected_cas_arc_bac_paried_df$arc_subtype)
+
+pls=list()
+for (i in c("TypeIA","TypeIB","TypeIC","TypeID","TypeIE","TypeIIA","TypeIIIA")) {
+  arc_spacer_length[filter(selected_cas_arc_bac_paried_df,group=="Cas2",arc_subtype==i)%>%pull(arc_genome)]%>%unlist()->a
+  a=a[a>28&a<45]
+  bac_spacer_length[filter(selected_cas_arc_bac_paried_df,group=="Cas2",arc_subtype==i)%>%pull(bac_genome)]%>%unlist()->b
+  b=b[b>28&b<45]
+  
+  min_n=min(length(a),length(b))
+  a=sample(a,min_n,replace = T)
+  b=sample(b,min_n,replace = T)
+  ks.test(a,b)->tmp_p
+  
+  rbind(
+  data.frame(domain=rep("Arc",length(a)),length=a),
+  data.frame(domain=rep("Bac",length(b)),length=b))->tmp
+  
+  pls[[i]]=ggplot(tmp,aes(x=length,fill=domain))+
+    geom_histogram(alpha=0.5,binwidth = 1,position = position_identity())+
+    annotate("text",x=I(0.8),y=I(0.8),label=paste0("KS p-value:",round(tmp_p$p.value,2)))+
+    ggtitle(i)
+}
+
+pls
+```
+
+
+### case
+
+```{r}
+library(ape)
+#挑一下cas树上最近的arc-bac genome关系，然后去看这些genome的array spacers length分布有没有关系。
+cas_tree_cas_ls=list()
+for (cas in c("1",2,4,9,5,7)) {
+  read.tree(paste0("1.pre_CCF/cas_tree/all_selected_cas",cas,"_aa_tree.nwk"))->cas_tree_cas1
+  dup_name=cas_tree_cas1$tip.label[duplicated(gsub("\\|.*","",cas_tree_cas1$tip.label))]
+  cas_tree_cas1=drop.tip(cas_tree_cas1,dup_name)
+  cas_tree_cas1$tip.label=gsub("\\|.*","",cas_tree_cas1$tip.label)
+  cas_tree_cas1=drop.tip(cas_tree_cas1,setdiff(cas_tree_cas1$tip.label,r16s_tree$tip.label))
+  cas_tree_cas_ls[[cas]]=cas_tree_cas1
+}
+
+gl_links_ls=list()
+for (cas in c("1",2,4,9,5,7)) {
+  cas_tree_cas1=cas_tree_cas_ls[[cas]]
+  cophenetic(cas_tree_cas1)->gdist
+  tmp_bac=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Bacteria")%>%pull(genome))
+  tmp_arc=intersect(cas_tree_cas1$tip.label,arc_bac_genome_selected%>%filter(kingdom=="Archaea")%>%pull(genome))
+  gdist[tmp_arc,tmp_bac]->gl_links_ls[[cas]]
+}
+save(gl_links_ls,file = "1.pre_CCF/cas_tree/arc_bac_link_dis.rda")
+gl_links_ls[[1]]%>%View
+```
+
+
+```{r}
+load("1.pre_CCF/cas_tree/Distance_between_bac_and_arc3.RData")
+load("1.pre_CCF/cas_tree/arc_bac_genome_selected_crispr.rda")
+load("1.pre_CCF/cas_tree/select_arc_crispr.rda")
+load("1.pre_CCF/cas_tree/arc_bac_link_dis.rda")
+load("1.pre_CCF/cas_tree/selected_cas_arc_bac_paried.rda")
+readr::read_delim("1.pre_CCF/cas_tree/arc_bac_genome_selected.txt",delim = "\t",
+                  col_names = c("genome","taxid","species","kingdom"))->arc_bac_genome_selected
+
+box_dat2=filter(box_dat,group!="16S")
+summarise(group_by(box_dat2,genome),ratio=mean(ratio))->arc_bac_ratio
+
+pairedls=c(
+  "GCA_934190985.1_ERR7738254_bin.79_genomic.fna"="GCA_016595285.2_ASM1659528v2_genomic.fna",
+  "GCF_023195915.1_ASM2319591v1_genomic.fna"="GCF_005116645.1_ASM511664v1_genomic.fna"
+)
+
+i=2
+bac1=pairedls[i]
+arc1=names(pairedls)[i]
+
+gl_links_ls[[1]][arc1,bac1]
+
+select_arc_crispr[[arc1]]$Cas
+genome_res[[bac1]]$Cas
+plot_crispr(select_arc_crispr[[arc1]],array = F)
+plot_crispr(genome_res[[bac1]],array = F)
+```
+
+Cas位置：
+1. NZ_JALPRP010000001.1 63747-72611
+2. NZ_SWCM01000008.1 127042-136585
+
+共线性分析试试
+```{r}
+dir.create("1.pre_CCF/cas_tree/case")
+download_ncbi_genome_file("GCF_023195915.1",out_dir = "1.pre_CCF/cas_tree/case/",type = "fna")
+download_ncbi_genome_file("GCF_005116645.1",out_dir = "1.pre_CCF/cas_tree/case/",type = "fna")
+```
+
+```{bash}
+# 安装MUMmer
+sudo apt-get install mummer  # Ubuntu/Debian
+conda install -c bioconda mummer  # 或通过Conda
+
+# 比对两个基因组（ref.fa为参考基因组，query.fa为待比对基因组）
+nucmer --prefix=out GCF_023195915.1_ASM2319591v1_genomic.fna GCF_005116645.1_ASM511664v1_genomic.fna
+delta-filter -1 -q -r out.delta > out.filtered.delta  # 过滤比对结果
+show-coords -rcl out.filtered.delta > out.coords  # 生成共线性坐标文件
+
+#上面的没结果，比较细菌-古菌
+seqkit grep -p "NZ_JALPRP010000001.1" GCF_023195915.1_ASM2319591v1_genomic.fna -o NZ_JALPRP010000001.1.fasta
+seqkit grep -p "NZ_SWCM01000008.1" GCF_005116645.1_ASM511664v1_genomic.fna -o NZ_SWCM01000008.1.fasta
+
+# 使用MUMmer进行局部比对（适合低相似度基因组）
+nucmer --maxmatch --mincluster 30 -l 15 --prefix=out NZ_JALPRP010000001.1.fasta NZ_SWCM01000008.1.fasta  # 放宽比对参数
+delta-filter -q -r out.delta > out.filtered.delta  # 保留唯一最佳比对
+show-coords -rcl out.filtered.delta > out.coords   # 输出坐标
+```
+
+找一下对应同物种不同基因组，最好是crispr+/-的差异
+
+```{r}
+read_delim("../data/case_data/arc_genome_tax_crispr_or_not.txt")->arc_genome_tax_crispr_or_not
+group_by(arc_genome_tax_crispr_or_not,taxid)%>%count(crispr_strict)%>%
+  filter(any(crispr_strict == "crispr_negative") & 
+         any(crispr_strict == "crispr_positive"))->tmp
+
+tmp=left_join(tmp,distinct(arc_genome_tax_crispr_or_not[,c("taxid","species")]))
+tmp[!(grepl("archaeon",tmp$species)|grepl("Candidatus",tmp$species)|grepl("sp.",tmp$species)|grepl("uncultured",tmp$species)),]->tmp
+
+intersect(names(select_arc_crispr),filter(arc_genome_tax_crispr_or_not,taxid%in%tmp$taxid)%>%pull(genome))->tmp_arc_genome
+arc_bac_ratio%>%filter(genome%in%tmp_arc_genome)
+
+
+read_delim("../data/case_data/bac_genome_tax_crispr_or_not.txt")->bac_genome_tax_crispr_or_not
+group_by(bac_genome_tax_crispr_or_not,taxid)%>%count(crispr_strict)%>%
+  filter(any(crispr_strict == "crispr_negative") & 
+         any(crispr_strict == "crispr_positive"))->tmp2
+
+tmp2=left_join(tmp2,distinct(bac_genome_tax_crispr_or_not[,c("taxid","species")]))
+tmp2[!(grepl("archaeon",tmp2$species)|grepl("Candidatus",tmp2$species)|grepl("sp.",tmp2$species)|grepl("uncultured",tmp2$species)|grepl("bacterium",tmp2$species)),]->tmp2
+bac_genome_tax_crispr_or_not=filter(bac_genome_tax_crispr_or_not,taxid%in%tmp2$taxid)
+```
+
+```{r}
+load("1.pre_CCF/all_arc_crispr.rda") 
+
+# 83986, Methanoculleus bourgensis
+# GCA_013201445.1_ASM1320144v1_genomic.fna
+all_arc_crispr[["GCA_900079125.1_MBBA_genomic.fna"]]$Cas
+plot_crispr(all_arc_crispr[["GCA_900079125.1_MBBA_genomic.fna"]],array = F) # 这两个genome ANI 98.24
+filter(arc_genome_tax_crispr_or_not,taxid=="83986")%>%pull(genome)%>%
+  gsub("(GC.*\\.1)_.*","\\1",.)%>%paste0(collapse = " ")
+
+# 细菌
+# 270918, Salegentibacter mishustinae
+# GCA_913052145.1_ERR599064_bin.124_MetaBAT_v2.12.1_MAG_genomic.fna
+intersect(gl_links_ls[[1]]["GCA_900079125.1_MBBA_genomic.fna",]%>%sort()%>%head(30)%>%names(),
+          bac_genome_tax_crispr_or_not$genome)
+genome_res[["GCF_001431365.1_ASM143136v1_genomic.fna"]]$Cas
+plot_crispr(genome_res[["GCF_001431365.1_ASM143136v1_genomic.fna"]],array = F)
+
+filter(bac_genome_tax_crispr_or_not,taxid=="270918")%>%pull(genome)%>%
+  gsub("(GC.*\\.1)_.*","\\1",.)%>%paste0(collapse = " ")
+```
+
+古菌：Methanoculleus bourgensis，ANI>98
+crispr+：GCA_900079125.1_MBBA_genomic.fna，LT549891.1
+cripsr-: GCA_013201445.1_ASM1320144v1_genomic.fna
+细菌：Salegentibacter mishustinae，ANI>96
+crispr+：GCF_001431365.1_ASM143136v1_genomic.fna，NZ_LKTP01000001.1
+cripsr-: GCA_913052145.1_ERR599064_bin.124_MetaBAT_v2.12.1_MAG_genomic.fna
+
+
+```{bash}
+# 比对两个基因组（ref.fa为参考基因组，query.fa为待比对基因组）
+nucmer --prefix=out GCA_013201445.1_ASM1320144v1_genomic.fna GCA_900079125.1_MBBA_genomic.fna
+delta-filter -1 -q -r out.delta > out.filtered.delta  # 过滤比对结果
+show-coords -rcl out.filtered.delta > out.coords  # 生成共线性坐标文件
+show-coords -rTl out.filtered.delta > out.coords
+
+scpjq -r /share/home/jianglab/pengchen/work/crispr/case/out.coords /Users/asa/Documents/R/CRISPR_analysis/analysis/1.pre_CCF/cas_tree/case/
+```
+
+```{r}
+read_delim("1.pre_CCF/cas_tree/case/out.coords",delim = "\t",skip = 4,
+           col_names = c("start","end","start2","end2","l1","l2","identity","length","length2","seq_id","seq_id2"))->seq_link
+arrange(seq_link,start2)->seq_link
+
+library(gggenomes)
+
+s0=rbind(
+  data.frame(bin_id="ref_genome",
+           seq_id=seq_link$seq_id,
+           length=seq_link$length
+  ),
+  data.frame(bin_id="query_genome",
+           seq_id=seq_link$seq_id2,
+           length=seq_link$length2
+  )
+)%>%distinct_all()
+
+gggenomes(seqs=s0) +geom_seq()          # draw contig/chromosome lines
+
+l0=select(seq_link,"seq_id","start","end","seq_id2","start2","end2")
+
+gggenomes(seqs=s0,links = filter(l0,start2>1e5,start2<1e6)) +
+  geom_seq()+
+  geom_link()
+```
+```{r}
+g0 <- read_feats("~/Desktop/GCA_900079125.1_MBBA_genomic.gff")
+g0_f=filter(g0,start>640000,end<650000)
+
+gggenomes(g0_f) + geom_gene()
+```
+
+
+
+
+```{r}
+# 59277, Methanobacterium subterraneum
+# GCA_013331025.1_ASM1333102v1_genomic.fna
+all_arc_crispr[["GCF_002813655.1_ASM281365v1_genomic.fna"]]$Cas
+plot_crispr(all_arc_crispr[["GCF_002813655.1_ASM281365v1_genomic.fna"]],array = F) # 这两个genome ANI 94.68
+
+filter(arc_genome_tax_crispr_or_not,taxid=="59277")%>%pull(genome)%>%
+  gsub("(GC.*\\.1)_.*","\\1",.)%>%paste0(collapse = " ")
+
+# 细菌
+# 1191523,Melioribacter roseus
+# GCA_945872845.1_ZE-13nov19-184_genomic.fna
+intersect(gl_links_ls[[1]]["GCF_002813655.1_ASM281365v1_genomic.fna",]%>%sort()%>%head(30)%>%names(),
+          bac_genome_tax_crispr_or_not$genome)
+genome_res[["GCF_000279145.1_ASM27914v1_genomic.fna"]]$Cas
+plot_crispr(genome_res[["GCF_000279145.1_ASM27914v1_genomic.fna"]],array = F)
+filter(bac_genome_tax_crispr_or_not,taxid=="1191523")%>%pull(genome)%>%
+  gsub("(GC.*\\.1)_.*","\\1",.)%>%paste0(collapse = " ")
+```
+
+古菌：Methanobacterium subterraneum，ANI>95
+crispr+：GCF_002813655.1_ASM281365v1_genomic.fna，NZ_CP017766.1
+cripsr-: GCA_013331025.1_ASM1333102v1_genomic.fna
+细菌：Melioribacter roseus，ANI没有大于95的crispr-
+crispr+：GCF_000279145.1_ASM27914v1_genomic.fna，NC_018178.1
+cripsr-: GCA_945872845.1_ZE-13nov19-184_genomic.fna
+
+
+
+## region similarity
+
+```{r}
+load("1.pre_CCF/cas_tree/select_arc_crispr.rda")
+
+selected_cas_arc_bac_paried_df=read.csv("1.pre_CCF/cas_tree/selected_cas_arc_bac_paried_DNA.csv")
+select_crispr(genome_res,unique(selected_cas_arc_bac_paried_df$bac_genome))->bac_crispr_paried
+
+cat(paste0(names(select_arc_crispr),".gz"),file = "1.pre_CCF/cas_region/select_arc_genome.txt",sep = "\n")
+cat(paste0(names(bac_crispr_paried),".gz"),file = "1.pre_CCF/cas_region/select_bac_genome.txt",sep = "\n")
+
+iCRISPR::summary_cas_type(select_arc_crispr,each_genome = T)->arc_cas_type
+iCRISPR::summary_cas_type(bac_crispr_paried,each_genome = T)->bac_cas_type
+
+select_arc_crispr$GCF_003201765.2_ASM320176v2_genomic.fna$Cas
+bac_crispr_paried$GCF_003337245.1_ASM333724v1_genomic.fna$Cas
+
+plot_crispr(select_arc_crispr$GCF_003201765.2_ASM320176v2_genomic.fna,array = F)
+plot_crispr(bac_crispr_paried$GCF_000746025.2_ASM74602v2_genomic.fna,array = F)
+
+
+i="TypeIA"
+
+tmppls=lapply(filter(arc_cas_type,subtype==i)%>%pull(genome), \(ge){
+  plot_crispr(select_arc_crispr[[ge]],array = F)+theme(legend.position = "")
+})
+tmpcomp=cowplot::plot_grid(plotlist = tmppls[1:10],ncol = 1)
+ggsave(paste0("1.pre_CCF/cas_region/1.",i,"cas_region.pdf"),tmpcomp,width = 7,height = 20)
+tmppls=lapply(filter(bac_cas_type,subtype==i)%>%pull(genome), \(ge){
+  plot_crispr(bac_crispr_paried[[ge]],array = F)+theme(legend.position = "")
+})
+tmpcomp=cowplot::plot_grid(plotlist = tmppls[1:10],ncol = 1)
+ggsave(paste0("1.pre_CCF/cas_region/1.",i,"cas_region2.pdf"),tmpcomp,width = 7,height = 20)
+```
+
+```{r}
+tmp1=select_arc_crispr$GCA_003116855.1_ASM311685v1_genomic.fna$Cas
+
+lapply(filter(arc_cas_type,subtype==i)%>%pull(genome), \(ge){
+  tmp1=select_arc_crispr[[ge]]$Cas
+  filter(tmp1,subtype==i)%>%pull(Cas_id)%>%head(1)->tmp_casid
+  filter(tmp1,Cas_id%in%tmp_casid)->tmp1
+  data.frame(tmp1[1,c(1,2,6)],
+             start=min(tmp1$start),
+             end=max(tmp1$end),
+             sequence=paste(tmp1$sequence,collapse = "NNNN"))
+})%>%do.call(rbind,.)->arc_cas_region
+lapply(filter(bac_cas_type,subtype==i)%>%pull(genome), \(ge){
+  tmp1=bac_crispr_paried[[ge]]$Cas
+  filter(tmp1,subtype==i)%>%pull(Cas_id)%>%head(1)->tmp_casid
+  filter(tmp1,Cas_id%in%tmp_casid)->tmp1
+  data.frame(tmp1[1,c(1,2,6)],
+             start=min(tmp1$start),
+             end=max(tmp1$end),
+             sequence=paste(tmp1$sequence,collapse = "NNNN"))
+})%>%do.call(rbind,.)->bac_cas_region
+
+summary(nchar(arc_cas_region$sequence))
+arc_cas_region=filter(arc_cas_region,nchar(sequence)>5e3)
+summary(nchar(bac_cas_region$sequence))
+write_fasta(arc_cas_region[,c("seqid","sequence")],
+            file_path = paste0("1.pre_CCF/cas_region/1.",i,"arc_cas_region.fasta"))
+write_fasta(bac_cas_region[,c("seqid","sequence")],
+            file_path = paste0("1.pre_CCF/cas_region/1.",i,"bac_cas_region.fasta"))
+
+write.table(arc_cas_region[,c("seqid","start","end")],
+            file = paste0("1.pre_CCF/cas_region/1.",i,"_arc_cas_region.bed"),
+            sep = "\t",quote = F,row.names = F,col.names = F)
+write.table(bac_cas_region[,c("seqid","start","end")],
+            file = paste0("1.pre_CCF/cas_region/1.",i,"_bac_cas_region.bed"),
+            sep = "\t",quote = F,row.names = F,col.names = F)
+```
+
+/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/
+
+```{bash}
+skani dist --qi -q 1.TypeIAarc_cas_region.fasta \
+      --ri -r 1.TypeIAbac_cas_region.fasta
+mash dist -i 1.TypeIAarc_cas_region.fasta 1.TypeIAbac_cas_region.fasta -k 11
+
+for i in `cat select_arc_genome.txt`
+do
+echo $i
+gunzip /data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/archaea/$i -c >> all_arc_genome.fna
+done
+
+for i in `cat select_bac_genome.txt`
+do
+echo $i
+gunzip /data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/bacteria/$i -c >> all_bac_genome.fna
+done
+
+seqkit subseq all_arc_genome.fna --bed 1.TypeIA_arc_cas_region.bed -f -u 5000 > 1.TypeIA_arc_cas_up_region.fna
+seqkit subseq all_bac_genome.fna --bed 1.TypeIA_bac_cas_region.bed -f -u 5000 > 1.TypeIA_bac_cas_up_region.fna
+
+mash dist -i 1.TypeIA_arc_cas_up_region.fna 1.TypeIA_bac_cas_up_region.fna -k 11
+```
+
+### cas gene
+
+比较一下paired gene 和paired的16S距离
+```{r}
+selected_cas_arc_bac_paried_df=read.csv("1.pre_CCF/cas_tree/selected_cas_arc_bac_paried_gene.csv")
+load("1.pre_CCF/cas_tree/cas_tree_cas_ls_gene.rda")
+lapply(cas_tree_cas_ls,\(i)mean(cophenetic(i)))->tree_mean_dis
+names(tree_mean_dis)=paste0("Cas",names(tree_mean_dis))
+tree_mean_dis=unlist(tree_mean_dis)
+
+cophenetic(r16s_tree)->gdist
+gdist[unique(selected_cas_arc_bac_paried_df$arc_genome),
+      unique(selected_cas_arc_bac_paried_df$bac_genome)]->gl_links
+melt(gl_links)->gl_links_melt2
+colnames(gl_links_melt2)=c("arc_genome","bac_genome","r16s_dis")
+selected_cas_arc_bac_paried_df2=
+  left_join(selected_cas_arc_bac_paried_df,gl_links_melt2,by=c("arc_genome","bac_genome"))
+
+selected_cas_arc_bac_paried_df3=mutate(
+  selected_cas_arc_bac_paried_df2,
+  dis=case_when(
+    group=="Cas1"~dis/tree_mean_dis["Cas1"],
+    group=="Cas2"~dis/tree_mean_dis["Cas2"],
+    group=="Cas4"~dis/tree_mean_dis["Cas4"],
+    group=="Cas5"~dis/tree_mean_dis["Cas5"],
+    group=="Cas7"~dis/tree_mean_dis["Cas7"],
+    group=="Cas9"~dis/tree_mean_dis["Cas9"]
+  ),
+  r16s_dis=r16s_dis/mean(gdist)
+)
+
+group_by(selected_cas_arc_bac_paried_df,arc_genome,bac_genome)%>%count()%>%View
+```
+
+```{r}
+pls=list()
+for (i in paste0("Cas",c(1,2,4,5,7,9))) {
+filter(selected_cas_arc_bac_paried_df3,group==i)%>%
+  select(dis,r16s_dis)%>%melt()->tmp_box_dat
+  group_box(tmp_box_dat,"variable",tmp_box_dat,alpha = T,paired = T)+
+    mytheme+
+    scale_color_d3()+
+    labs(y="Distance",title = i)+
+    guides(color=guide_legend(title="Gene"))->pls[[i]]
+}
+cowplot::plot_grid(plotlist = pls)
+ggsave("1.pre_CCF/cas_tree/Distance_between_bac_and_arc_gene.pdf",width=15,height=8)
+```
+
+
+```{r}
+melt(selected_cas_arc_bac_paried_df3[,c("group","dis","r16s_dis")])->tmp_box_dat
+
+tmp_box_dat <- tmp_box_dat %>%
+  group_by(group) %>%
+  mutate(pair_id = paste0(group,"_",rep(1:(n()/2),2))) %>%
+  ungroup()
+# 计算点的 x 坐标偏移（使 dis 和 r16s_dis 稍微错开）
+tmp_box_dat <- tmp_box_dat %>%
+  mutate(
+    x_pos = as.numeric(factor(group)) + ifelse(variable == "dis", -0.22, 0.22)
+  )
+
+# 绘制箱线图 + 配对点 + 连线
+ggplot(filter(tmp_box_dat,group!="Cas9"), aes(x = group, y = value)) +
+  geom_boxplot(aes(fill = variable),
+               outlier.shape = NA, width = 0.2,position = position_dodge(1.5),show.legend = F) +
+  geom_point(aes(color = variable, x = x_pos), size = 1) +
+  geom_line(
+    aes(x = x_pos, group = pair_id), color = "grey",
+    alpha = 0.3,
+    size = 0.25
+  ) +
+  mytheme +
+  scale_fill_d3() +
+  scale_color_d3(label=c("Cas","16S")) +
+  labs(y = "Phylogenetic distance") +
+  guides(color = guide_legend(title = NULL))+
+  theme(legend.position = c(0.95,0.1),
+        legend.background = element_blank(),
+        legend.key = element_blank(),
+        legend.box.background = element_blank())+xlab(NULL)
+ggsave("1.pre_CCF/cas_tree/Distance_between_bac_and_arc_gene2.pdf",width=7,height=3.5)
+```
+
+
+gene region
+```{r}
+load("1.pre_CCF/cas_tree/all_selected_cas.rda")
+for (cas in c("1",2,4,5,7,9)) {
+filter(selected_cas_arc_bac_paried_df,group==paste0("Cas",cas))->arc_bac_paried_cas1
+all_selected_cas1_uniq=distinct(get(paste0("all_selected_cas",cas)),genome,.keep_all = T)
+all_selected_cas1_uniq[match(arc_bac_paried_cas1$arc_genome,all_selected_cas1_uniq$genome),]->arc_bac_paried_cas1_arc
+all_selected_cas1_uniq[match(arc_bac_paried_cas1$bac_genome,all_selected_cas1_uniq$genome),]->arc_bac_paried_cas1_bac
+
+arc_bac_paried_cas1_arc%>%
+  select(genome,seqid,start,end)->arc_region
+write.table(arc_region[,-1],
+            file = paste0("1.pre_CCF/cas_region/arc_cas",cas,"_region.bed"),
+            sep = "\t",quote = F,row.names = F,col.names = F)
+arc_bac_paried_cas1_bac%>%
+  select(genome,seqid,start,end)->bac_region
+write.table(bac_region[,-1],
+            file = paste0("1.pre_CCF/cas_region/bac_cas",cas,"_region.bed"),
+            sep = "\t",quote = F,row.names = F,col.names = F)
+}
+```
+
+```{bash}
+for i in {1,2,4,5,7,9}
+do
+echo $i
+seqkit subseq all_arc_genome.fna --bed arc_cas${i}_region.bed > arc_cas${i}_region.fna
+seqkit subseq all_bac_genome.fna --bed bac_cas${i}_region.bed > bac_cas${i}_region.fna
+seqkit subseq all_arc_genome.fna --bed arc_cas${i}_region.bed -f -u 1000 > arc_cas${i}_up_region.fna
+seqkit subseq all_bac_genome.fna --bed bac_cas${i}_region.bed -f -u 1000 > bac_cas${i}_up_region.fna
+seqkit subseq all_arc_genome.fna --bed arc_cas${i}_region.bed -f -d 1000 > arc_cas${i}_down_region.fna
+seqkit subseq all_bac_genome.fna --bed bac_cas${i}_region.bed -f -d 1000 > bac_cas${i}_down_region.fna
+done
+```
+
+```{r}
+arc_bac_paried_all=data.frame()
+
+for (cas in c("1",2,4,5,7,9)) {
+filter(selected_cas_arc_bac_paried_df,group==paste0("Cas",cas))->arc_bac_paried_cas1
+all_selected_cas1_uniq=distinct(get(paste0("all_selected_cas",cas)),genome,.keep_all = T)
+all_selected_cas1_uniq[match(arc_bac_paried_cas1$arc_genome,all_selected_cas1_uniq$genome),]->arc_bac_paried_cas1_arc
+all_selected_cas1_uniq[match(arc_bac_paried_cas1$bac_genome,all_selected_cas1_uniq$genome),]->arc_bac_paried_cas1_bac
+#提取region
+arc_bac_paried_cas1_arc%>%
+  select(genome,seqid,start,end)->arc_region
+arc_bac_paried_cas1_bac%>%
+  select(genome,seqid,start,end)->bac_region
+
+# gene identity
+arc_bac_paried_cas1$gene_identity=0
+for (i in seq_len(nrow(arc_bac_paried_cas1_arc))) {
+  print(i)
+  iCRISPR::calculate_identity(
+    arc_bac_paried_cas1_arc[i,"sequence2"],
+    arc_bac_paried_cas1_bac[i,"sequence2"])->arc_bac_paried_cas1[i,"gene_identity"]
+}
+
+cas1_arc_bac_paried=
+  left_join(filter(selected_cas_arc_bac_paried_df,group==paste0("Cas",cas)),
+            distinct(arc_region[,1:2],genome,.keep_all = T),by = c("arc_genome"="genome"))
+cas1_arc_bac_paried=
+  left_join(cas1_arc_bac_paried,
+            distinct(bac_region[,1:2],genome,.keep_all = T),by = c("bac_genome"="genome"))
+
+# region identity
+read_fasta(paste0("1.pre_CCF/cas_region/arc_cas",cas,"_up_region.fna"))->arc_cas1_up_region
+arc_cas1_up_region$Sequence_ID=gsub("(.*\\.\\d)_.*","\\1",arc_cas1_up_region$Sequence_ID)
+arc_cas1_up_region=arc_cas1_up_region[match(arc_bac_paried_cas1_arc$seqid,arc_cas1_up_region$Sequence_ID),]
+read_fasta(paste0("1.pre_CCF/cas_region/bac_cas",cas,"_up_region.fna"))->bac_cas1_up_region
+bac_cas1_up_region$Sequence_ID=gsub("(.*\\.\\d)_.*","\\1",bac_cas1_up_region$Sequence_ID)
+bac_cas1_up_region=bac_cas1_up_region[match(arc_bac_paried_cas1_bac$seqid,bac_cas1_up_region$Sequence_ID),]
+arc_bac_paried_cas1$up_identity=0
+for (i in seq_len(nrow(arc_bac_paried_cas1_arc))) {
+  print(i)
+  iCRISPR::calculate_identity(
+    arc_cas1_up_region[i,"Sequence"],
+    bac_cas1_up_region[i,"Sequence"])->arc_bac_paried_cas1[i,"up_identity"]
+}
+
+# region identity
+read_fasta(paste0("1.pre_CCF/cas_region/arc_cas",cas,"_down_region.fna"))->arc_cas1_down_region
+arc_cas1_down_region$Sequence_ID=gsub("(.*\\.\\d)_.*","\\1",arc_cas1_down_region$Sequence_ID)
+arc_cas1_down_region=arc_cas1_down_region[match(arc_bac_paried_cas1_arc$seqid,arc_cas1_down_region$Sequence_ID),]
+read_fasta(paste0("1.pre_CCF/cas_region/bac_cas",cas,"_down_region.fna"))->bac_cas1_down_region
+bac_cas1_down_region$Sequence_ID=gsub("(.*\\.\\d)_.*","\\1",bac_cas1_down_region$Sequence_ID)
+bac_cas1_down_region=bac_cas1_down_region[match(arc_bac_paried_cas1_bac$seqid,bac_cas1_down_region$Sequence_ID),]
+arc_bac_paried_cas1$down_identity=0
+for (i in seq_len(nrow(arc_bac_paried_cas1_arc))) {
+  print(i)
+  iCRISPR::calculate_identity(
+    arc_cas1_down_region[i,"Sequence"],
+    bac_cas1_down_region[i,"Sequence"])->arc_bac_paried_cas1[i,"down_identity"]
+}
+
+arc_bac_paried_all=rbind(arc_bac_paried_all,arc_bac_paried_cas1)
+}
+save(arc_bac_paried_all,file = "1.pre_CCF/cas_tree/arc_bac_paried_all.rda")
+```
+
+
+
+```{r}
+my_lm(arc_bac_paried_all["dis"],"gene_identity",arc_bac_paried_all)
+cor.test(arc_bac_paried_all$dis,arc_bac_paried_all$gene_identity,method = "spearman")
+
+arc_bac_paried_all
+arc_bac_paried_cas1[,c("arc_genome","up_identity","gene_identity","down_identity")]->tmp
+melt(tmp)->tmp
+
+group_by(tmp,arc_genome)%>%filter(value==max(value))->tmp2
+table(tmp2$variable)
+tmp3=filter(tmp,arc_genome%in%(filter(tmp2,variable=="gene_identity")%>%pull(arc_genome)))
+
+group_box(tmp3["value"],tmp3$variable,paired = T)+mytheme+ggtitle("Cas1")
+
+ggsave("1.pre_CCF/cas_tree/arc_bac_paried_cas1_up_down.pdf",width=7,height=4)
+
+pls=list()
+for (cas in c("1",2,4,5,7)) {
+  print(cas)
+  filter(arc_bac_paried_all,group==paste0("Cas",cas))->arc_bac_paried_cas1
+  arc_bac_paried_cas1[,c("arc_genome","up_identity","gene_identity","down_identity")]->tmp
+  melt(tmp)->tmp
+  tmp$variable=gsub("_identity","",tmp$variable)
+  tmp$variable=factor(tmp$variable,levels = c("up","gene","down"))
+  # group_by(tmp,arc_genome)%>%filter(value==max(value))->tmp2
+  group_by(tmp,arc_genome)->tmp2
+  tmp=filter(tmp,arc_genome%in%(filter(tmp2,variable=="gene")%>%pull(arc_genome)))
+  #table(tmp2$variable)%>%print
+  (group_box(tmp["value"],tmp$variable,paired = T)+mytheme+ggtitle(paste0("Cas",cas)))->pls[[cas]]
+  pls[[cas]]=pls[[cas]]+labs(y="Identity")+
+    theme(legend.position = "none")
+}
+cowplot::plot_grid(plotlist = pls,ncol = 3)
+```
+
+```{r}
+arc_bac_paried_all1=arc_bac_paried_all[,c("arc_genome","group","up_identity","gene_identity","down_identity")]
+apply(arc_bac_paried_all1, 1, function(x) {
+  which.max(x[3:5])
+})->tmp_all
+arc_bac_paried_all2=arc_bac_paried_all1[tmp_all==2,]
+
+melt(arc_bac_paried_all2)->tmp_all
+tmp_all2 <- tmp_all %>%
+  group_by(group) %>%
+  mutate(pair_id = paste0(group,"_",rep(1:(n()/3),3))) %>%
+  ungroup()
+# 计算点的 x 坐标偏移（使 dis 和 r16s_dis 稍微错开）
+tmp_all3 <- tmp_all2 %>%
+  mutate(
+    x_pos = as.numeric(factor(group)) + ifelse(variable == "up_identity", -0.3, 
+                                               ifelse(variable == "down_identity", 0.3, 0))
+  )
+
+# 绘制箱线图 + 配对点 + 连线
+ggplot(filter(tmp_all3,group!="Cas9"), aes(x = group, y = value)) +
+  geom_boxplot(aes(fill = variable),
+             outlier.shape = NA, width = 0.2,position = position_dodge(0.9),show.legend = F) +
+  geom_point(aes(color = variable, x = x_pos), size = 1) +
+  geom_line(
+    aes(x = x_pos, group = pair_id), color = "grey",
+    alpha = 0.3,
+    size = 0.25
+  ) +
+  mytheme +
+  scale_fill_npg() +
+  scale_color_d3(label=c("Up","Gene","Down")) +
+  labs(y = "Identity") +
+  guides(color = guide_legend(title = NULL))+
+  theme(legend.position = c(0.8,0.05),
+        legend.direction = "horizontal",
+        legend.background = element_blank(),
+        legend.key = element_blank(),
+        legend.box.background = element_blank())+xlab(NULL)
+ggsave("1.pre_CCF/cas_region/arc_bac_paried_cas1_up_down2.pdf",width=7,height=4)
+```
+
+
+
+```{r}
+# 这个不用
+# mash dist -i arc_cas1_region.fna bac_cas1_region.fna -k 11 > arc_cas1_region.mash
+# mash dist -i arc_cas1_up_region.fna bac_cas1_up_region.fna -k 11 > arc_cas1_up_region.mash
+# mash dist -i arc_cas1_down_region.fna bac_cas1_down_region.fna -k 11 > arc_cas1_down_region.mash
+
+read.table("1.pre_CCF/cas_region/arc_cas1_region.mash",header = F)->mash_gene_res
+read.table("1.pre_CCF/cas_region/arc_cas1_up_region.mash",header = F)->mash_up_res
+read.table("1.pre_CCF/cas_region/arc_cas1_down_region.mash",header = F)->mash_down_res
+mash_res=data.frame(
+  group=c(rep("gene",nrow(mash_gene_res)),
+           rep("up",nrow(mash_up_res)),
+           rep("down",nrow(mash_down_res))),
+  rbind(mash_gene_res,mash_up_res,mash_down_res)
+)
+colnames(mash_res)=c("group","ref","query","distance","p_value","hash_hits")
+mash_res$ref=gsub("(.*\\.\\d)_.*","\\1",mash_res$ref)
+mash_res$query=gsub("(.*\\.\\d)_.*","\\1",mash_res$query)
+
+left_join(cas1_arc_bac_paried,mash_res[,c(1:4)],by=c("seqid.x"="ref","seqid.y"="query"))->cas1_arc_bac_paried2
+group_by(cas1_arc_bac_paried2,arc_genome,bac_genome,group.y)%>%distinct(arc_genome,.keep_all = T)->cas1_arc_bac_paried2
+
+group_box(cas1_arc_bac_paried2["distance"],cas1_arc_bac_paried2$group.y,alpha = T,paired = T)+
+  mytheme+
+  scale_color_d3()+
+  labs(y="Distance",title = "Cas1 gene region")+
+  guides(color=guide_legend(title="Gene"))
+```
+

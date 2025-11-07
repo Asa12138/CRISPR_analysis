@@ -1,0 +1,187 @@
+# gene annotation
+
+## KEGG
+把target的所有的gene去注释KEGG，然后做一些富集分析
+首先是只用了prokaryote的蛋白信息比对，所以要设定背景集
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/blastdb_new/gene_annotation/bac23_targeting_part/bacteria/bac_tmp/uniq_spacer_counts_ko ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/blastdb_new/gene_annotation/bac23_targeting_part/bacteria/bac_tmp/bac_bac_ko_id ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/kegg_23/TWKEGG_v2304/KEGG_proteins/proka_ko_list ~/Documents/R/CRISPR_analysis/analysis/2.Blast_res/
+```
+
+
+```{r}
+load_all("../../ReporterScore/")
+
+load_KOlist()
+
+read.table("2.Blast_res/bac_bac_ko_id",header = T)
+
+#设定背景集proka
+pro_ko=read.table("2.Blast_res/proka_ko_list",header = F)%>%.[,1]
+pth2ko=explode(KOlist$pathway[,c(1,3)],2,",")
+pth2ko_pro=filter(pth2ko,KOs%in%pro_ko)
+pro_pathway=custom_modulelist(pth2ko_pro,KOlist$pathway[,c(1,4)])
+
+#超几何分布检验
+#input set
+uniq_spacer_counts_ko=read.table("2.Blast_res/uniq_spacer_counts_ko",header = T)
+spacer_ko=unique(uniq_spacer_counts_ko$ko_id)
+
+# e <- clusterProfiler::enricher(gene = spacer_ko,TERM2GENE = pth2ko_pro,TERM2NAME = KOlist$pathway[,c(1,4)],
+#                   pAdjustMethod = "BH", pvalueCutoff = 1, qvalueCutoff = 1)
+# View(e@result)
+# enrichplot::dotplot(e)
+
+#构造一个假的p值
+ko_stat=rbind(
+  data.frame(KO_id=spacer_ko,p.adjust=0.04),
+  data.frame(KO_id=setdiff(pro_ko,spacer_ko),p.adjust=0.1)
+  )
+
+spacer_enrich1=KO_enrich(ko_stat,modulelist = pro_pathway)
+plot(spacer_enrich1,padj_threshold = 0.01)
+
+
+load_Pathway_htable()
+tmpdf=Pathway_htable[,c("level2_name","Pathway_id")]
+colnames(tmpdf)=c("facet_level","ID")
+spacer_enrich1=dplyr::left_join(spacer_enrich1,tmpdf,by=c("ID"),suffix=c("",".y"))
+
+plot(spacer_enrich1,padj_threshold = 0.01,str_width = 100)+
+  facet_grid(facet_level.y~.,scales = "free_y",space = "free",labeller = label_wrap_gen(100))+
+        theme(strip.text.y = element_text(angle = 0))
+
+ggsave("2.Blast_res/5.gene_anno_kegg.pdf",height = 9,width = 9)
+
+#看看丰度高的spacer富集结果
+spacer_ko=uniq_spacer_counts_ko%>%filter(spacer_counts>1000)%>%unique(.$ko_id)
+ko_stat=rbind(
+  data.frame(KO_id=spacer_ko,p.adjust=0.04),
+  data.frame(KO_id=setdiff(pro_ko,spacer_ko),p.adjust=0.1)
+  )
+
+spacer_enrich1=KO_enrich(ko_stat,modulelist = pro_pathway)
+plot(spacer_enrich1,padj_threshold = 0.01)
+
+#某些科学问题下的检验
+#比如丰度高的spacer2ko会富集到哪些？可以把丰度转化成0～1的值进行比较。
+
+
+```
+
+## NR2GO
+
+GO富集，先把spacer比对到NR库，然后可以找到NR对应的GO关系，用这个做富集。
+```{r}
+load_all("../../ReporterScore/")
+GO_res=list("RefSeq"=list("gene"=NULL,"inter"=NULL),"GeneID"=list("gene"=NULL,"inter"=NULL))
+
+#intergene富集结果#gene富集结果
+#gng=c("gene","inter")[1];mode=c("RefSeq","GeneID")[1]
+
+for (mode in c("RefSeq","GeneID")) {
+  for (gng in c("gene","inter")){
+    
+gene_res=read.table(paste0("2.Blast_res/bac_bac_nr_",gng,"_go_uniq_spacer2"),sep = "\t",header = T)
+gene_res=gene_res[,c("unique_spacer_id","spacer_counts",mode,"GO")]
+
+#GO-RefSeq或GeneID的关系
+gene_res=explode(gene_res,3,"; ")
+gene_res2=distinct_(gene_res,"unique_spacer_id",mode,.keep_all = T)
+
+background=gene_res[,3:4]%>%distinct_all()
+background=explode(background,2,"; ")
+
+load_GOinfo()
+GOmodulelist=custom_modulelist(background[,2:1],GOinfo[,1:2])
+
+#spacer_count
+gene_count=gene_res2%>%group_by_(mode)%>%summarise(spacer_counts=sum(spacer_counts))%>%
+  arrange(-spacer_counts)%>%as.data.frame()
+colnames(gene_count)[1]=mode
+#hist(gene_count$spacer_counts)
+
+#取spacer_number前5%的做前景富集
+top=ceiling(nrow(gene_count)*0.05)
+
+#构造一个假的p值
+ko_stat=rbind(
+  data.frame(KO_id=gene_count[1:top,mode],p.adjust=0.04),
+  data.frame(KO_id=gene_count[top+1:nrow(gene_count),mode],p.adjust=0.1)
+  )
+
+spacer_enrich=KO_fisher(ko_stat,modulelist = GOmodulelist,p.adjust.method = "none")
+GO_res[[mode]][[gng]]=spacer_enrich
+  }
+}
+
+View(GO_res$RefSeq$gene)
+View(GO_res$GeneID$gene)
+
+plot_enrich_res(GO_res$RefSeq,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
+ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_RefSeq.pdf")
+plot_enrich_res(GO_res$GeneID,padj_threshold = 0.05,mode = 2,facet_level = T,facet_anno = GOinfo[,c(3,1)])
+ggsave(filename = "2.Blast_res/5.gene_inter_anno_go_GeneID.pdf")
+
+```
+
+### specific species
+
+```{r}
+load_all("../../GRSA/ReporterScore/")
+
+spe_GO_res=list()
+
+#intergene富集结果#gene富集结果
+#gng=c("gene","inter")[1];mode=c("RefSeq","GeneID")[1]
+mode="GeneID"
+bac_net_uniq <- readRDS("~/Documents/R/CRISPR_analysis/data/bac23/bac_net_uniq.RDS")
+
+gene_res=read.table(paste0("2.Blast_res/bac_bac_nr_","gene","_go_uniq_spacer2"),sep = "\t",header = T)
+gene_res=left_join(gene_res,bac_net_uniq[,c("unique_spacer_id","source_name")],by="unique_spacer_id")
+any(is.na(gene_res$source_name))
+
+#background table:total bac2bac genomes' genes
+if(F){
+bg=read.table("2.Blast_res/bac_bac_total_nr_gene1_go2",sep = "\t",header = T)
+bg=bg[,c(mode,"GO")]
+background=bg%>%distinct_all()
+background=explode(background,2,"; ")
+background_GeneID=background$GeneID
+rm(bg,background)
+load_GOinfo()
+GOmodulelist=custom_modulelist(background[,2:1],GOinfo[,1:2])
+save(GOmodulelist,background_GeneID,file = "2.Blast_res/bac_bac_total_nr_gene1_go2_modulelist.rda")
+}
+load("2.Blast_res/bac_bac_total_nr_gene1_go2_modulelist.rda")
+
+spe_list=count(gene_res,source_name)%>%arrange(-n)
+
+for (spe in spe_list$source_name[1:10]) {
+  print(spe)
+  gene_res_tmp=gene_res%>%filter(source_name==spe)%>%.[,c("unique_spacer_id","spacer_counts",mode,"GO")]
+  
+  #构造一个假的p值
+  ko_stat=rbind(
+    data.frame(KO_id=unique(gene_res_tmp$GeneID),p.adjust=0.04),
+    data.frame(KO_id=setdiff(background_GeneID,gene_res_tmp$GeneID),p.adjust=0.1)
+    )
+  
+  spacer_enrich=KO_fisher(ko_stat,modulelist = GOmodulelist,p.adjust.method = "BH")
+  #spacer_enrich$p.adjust=p.adjust(spacer_enrich$p.value)
+  spe_GO_res[[spe]]=spacer_enrich
+}
+
+save(spe_GO_res,file = "2.Blast_res/spe_GO_res_bac_bac_gene.rda")
+
+View(spe_GO_res$`s__Escherichia coli`)
+plot_enrich_res(spe_GO_res$`s__Escherichia coli`,mode = 2)
+
+plotpdf(lapply(1:10, \(i)plot_enrich_res(spe_GO_res[[i]],mode = 2)+labs(title = spe_list$source_name[i])),
+        file = "2.Blast_res/spe_GO_res_bac_bac_gene.pdf")
+
+
+#View(GO_res$RefSeq$gene)
+```

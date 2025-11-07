@@ -1,0 +1,244 @@
+---
+title: "5.CRISPR_SV"
+author:
+  - Peng Chen
+date: Wed Aug 16 00:51:27 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = T, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+source("./R_config.R")
+output="5.CRISPR_SV/"
+```
+
+# Crispr SV
+
+写了一些帮助定性和定量描述crispr array结构变化的方法，看看那些spacer很一致(cd-hit会去掉)的array具体情况。
+```{r}
+#test
+#./dir_61/GCF_900654245.1_MTB36.1_genomic.fna
+#./dir_3/GCF_900654265.1_MTB79499.1_genomic.fna
+
+#Mycobacterium tuberculosis
+load("1.pre_CCF/dir_3.rda")
+genome1=res$GCF_900654265.1_MTB79499.1_genomic.fna
+View(genome1$CRISPR)
+a1=get_Arrays(genome1)[["NZ_LR136962.1@CRISPR:8"]]
+
+load("1.pre_CCF/dir_61.rda")
+genome2=res$GCF_900654245.1_MTB36.1_genomic.fna
+View(genome2$CRISPR)
+a2=get_Arrays(genome2)[["NZ_LR136961.1@CRISPR:1"]]
+
+res=compare_array(a1$spacers,a2$spacers,identity = F)
+plot.array_comparison(res)
+align_array(res)->align_res
+plot.array_comparison(align_res)
+ggsave("5.CRISPR_SV/array_compare/1.Mycobacterium_tuberculosis2.pdf",width = 8)
+
+
+load("1.pre_CCF/dir_121.rda")
+genome1=res$GCF_002887255.1_ASM288725v1_genomic.fna
+View(genome1$CRISPR)
+a1=get_Arrays(genome1)[["NZ_CP025602.1@CRISPR:6"]]
+genome2=res$GCF_001387155.1_8987_5_20_genomic.fna
+View(genome2$CRISPR)
+a2=get_Arrays(genome2)[["NZ_CPIQ01000011.1@CRISPR:1"]]
+
+res=compare_array(a1$spacers,a2$spacers,identity = F)
+plot.array_comparison(res)
+align_array(res)->align_res
+plot.array_comparison(align_res)
+ggsave("5.CRISPR_SV/array_compare/1.Mycobacterium_tuberculosis3.pdf",width = 8)
+
+```
+
+
+```{r}
+genomelist=list()
+load("1.pre_CCF/dir_292.rda")
+genomelist[[1]]=res$GCF_000195955.2_ASM19595v2_genomic.fna
+load("1.pre_CCF/dir_106.rda")
+genomelist[[2]]=res$GCF_014899985.1_ASM1489998v1_genomic.fna
+
+View(genomelist[[1]]$CRISPR)
+a1=get_Arrays(genomelist[[1]])[["NC_000962.3@CRISPR:8"]]
+View(genomelist[[2]]$CRISPR)
+a2=get_Arrays(genomelist[[2]])[["NZ_CP041827.1@CRISPR:7"]]
+
+res=compare_array(a1$spacers,a2$spacers,identity = F)
+plot.array_comparison(res)
+align_array(res)->align_res
+plot.array_comparison(align_res,linewidth = 1)
+ggsave("5.CRISPR_SV/array_compare/1.Mycobacterium_tuberculosis.pdf",width = 10)
+
+View(genomelist[[1]]$CRISPR)
+a3=get_Arrays(genomelist[[1]])[["NC_000962.3@CRISPR:7"]]
+View(genomelist[[2]]$CRISPR)
+a4=get_Arrays(genomelist[[2]])[["NZ_CP041827.1@CRISPR:6"]]
+
+res=compare_array(a3$spacers,a4$spacers)
+plot.array_comparison(res)
+align_array(res)->align_res
+plot.array_comparison(align_res,linewidth = 1)
+ggsave("5.CRISPR_SV/array_compare/1.Mycobacterium_tuberculosis1.pdf",width = 10)
+
+plot_crispr(genomelist[[1]],contig ="NC_000962.3",cas = F)+xlim_crispr(3119185,3123576)
+summary_SV(align_res$array_align_res)
+```
+
+
+```{r}
+View(all_arc_crispr[[1]]$CRISPR)
+
+#先找所有level4的array
+
+
+```
+
+
+# shared spacer
+
+有一些spacer在不同的细菌中出现
+```{r}
+read.table("5.CRISPR_SV/spacer_info.tsv",header = T,sep = "\t")->spacer_info
+
+count(spacer_info,uniq_id)
+```
+找array
+
+之前所有crisprcasfinder结果分布在不同文件夹里，要通过genome_list查询
+/data/home/jianglab/share/bac2pc/all_genomelist.rda
+
+
+```{r}
+library(dplyr)
+copy_vector(unique(spacer_info$genome))
+search_genome=data.frame(genome=c("GCF_014802845.1_ASM1480284v1_genomic.fna","GCF_903684385.1_assembly_BB1468_genomic.fna","GCA_027767105.1_PDT001566652.1_genomic.fna","GCA_002012185.1_ASM201218v1_genomic.fna","GCF_011604725.1_ASM1160472v1_genomic.fna","GCF_022543775.1_ASM2254377v1_genomic.fna","GCF_010093005.1_ASM1009300v1_genomic.fna","GCA_024273275.1_PDT001345567.1_genomic.fna","GCF_902158715.1_SB6413_genomic.fna","GCF_022568215.1_ASM2256821v1_genomic.fna","GCF_026222785.1_ASM2622278v1_genomic.fna","GCA_024474265.1_PDT001370425.1_genomic.fna","GCF_000957245.1_ASM95724v1_genomic.fna","GCF_014170855.1_ASM1417085v1_genomic.fna","GCA_917060755.1_FD01844685_genomic.fna"))
+#/data/home/jianglab/share/bac2pc 下
+load("all_genomelist.rda")
+search_res=right_join(all_genomelist,search_genome)
+
+search_res=arrange(search_res,p,dir)
+#寻找cripsr文件
+
+dirs=distinct(search_res,p,dir)
+
+#6715 <NA> <NA> GCF_000668315.1_Myco_tube_UT0037_V1_genomic.fna
+
+dirs=na.omit(dirs)
+#devtools::load_all("../../iCRISPR")
+library(iCRISPR)
+genome_res=NULL
+for (i in seq_len(nrow(dirs))) {
+  print(i)
+  tmp_genome=filter(search_res,p==dirs[i,1,drop=T],dir==dirs[i,2,drop=T])%>%pull(genome)
+  load(paste0("../",dirs[i,1,drop=T],"/rdals/",dirs[i,2,drop=T],".rda"))
+  if(is.null(genome_res))genome_res=res[tmp_genome]
+  else genome_res=c(genome_res,res[tmp_genome])
+}
+class(genome_res)="multi_crispr"
+save(genome_res,file = "HGT_test.rda")
+
+```
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/bac2pc/HGT_test.rda ~/Documents/R/CRISPR_analysis/analysis/5.CRISPR_SV/
+```
+
+```{r}
+#找到所有的array
+load("5.CRISPR_SV/HGT_test.rda")
+
+dplyr::filter(spacer_info,uniq_id==spacer_info[1,"uniq_id"])%>%View()
+
+# s__Citrobacter freundii
+genome1=genome_res$GCF_014802845.1_ASM1480284v1_genomic.fna
+View(genome1$CRISPR)
+a1=get_Arrays(genome1)[["NZ_JACYCN010000049.1@CRISPR:1"]]
+# s__Escherichia coli
+genome2=genome_res$GCA_002012185.1_ASM201218v1_genomic.fna
+View(genome2$CRISPR)
+a2=get_Arrays(genome2)[["CP018961.1@CRISPR:1"]]
+# s__Klebsiella pneumoniae
+genome3=genome_res$GCF_022568215.1_ASM2256821v1_genomic.fna
+View(genome3$CRISPR)
+a3=get_Arrays(genome3)[["NZ_JAEDYP010000021.1@CRISPR:1"]]
+
+
+
+res=compare_array(a1$spacers,a3$spacers,identity = F)
+plot.array_comparison(res)
+align_array(res)->align_res
+
+align_res$array_spacer$array=tidai(align_res$array_spacer$array,c("s__Citrobacter freundii","s__Escherichia coli"))
+align_res$compare$array1="s__Citrobacter freundii"
+align_res$compare$array2="s__Escherichia coli"
+plot.array_comparison(align_res)
+ggsave("5.CRISPR_SV/array_compare/1.Citrobacter_freundii_Escherichia_coli.pdf",width = 8)
+
+```
+
+可以加一个用网络图绘制多个spacer的共现情况的函数
+
+```{r}
+a1$spacers
+a2$spacers
+a3$spacers
+res1=compare_array(c(a1_=a1$spacers),c(a2_=a2$spacers),identity = F)
+res2=compare_array(c(a1_=a1$spacers),c(a3_=a3$spacers),identity = F)
+res3=compare_array(c(a2_=a2$spacers),c(a3_=a3$spacers),identity = F)
+do.call(rbind,list(res1$compare,res2$compare,res3$compare))->compare_res
+filter(compare_res,identity>0.5)->edge
+do.call(rbind,list(res1$array_spacer,res2$array_spacer,res3$array_spacer))->array_spacer_res
+select(array_spacer_res,id)%>%mutate(array=gsub("_\\d+","",id),position=gsub(".*_","",id))%>%distinct()->node
+
+library(MetaNet)
+c_net_from_edgelist(edge,node)->crispr_net
+c_net_set(crispr_net,vertex_class = "array")->crispr_net
+
+
+coors=g_lay_polygon(crispr_net,group = "v_class",group_order = "position")
+c_net_plot(crispr_net,coors = coors,labels_num = "all")
+coors$coors[14:28,"name"]=rev(coors$coors[14:28,"name"])
+c_net_plot(crispr_net,coors = coors,labels_num = "all")
+
+c_net_filter(crispr_net,v_class%in%c("a1","a2"))->crispr_net_sub1
+coors=g_lay_polygon(crispr_net_sub1,group = "v_class",group_order = "position")
+coors$coors[14:28,"name"]=rev(coors$coors[14:28,"name"])
+c_net_plot(crispr_net_sub1,coors = coors,labels_num = "all")
+
+paste0("C",components(crispr_net)$membership)->memb
+table(memb)
+
+memb->V(crispr_net)$component
+c_net_set(crispr_net,vertex_class = "component")->crispr_net
+c_net_plot(crispr_net,coors = coors,labels_num = "all",legend = F,
+           main="Citrobacter freundii,Escherichia coli,Klebsiella pneumoniae")
+
+```

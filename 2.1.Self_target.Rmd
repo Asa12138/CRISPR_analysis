@@ -1,0 +1,395 @@
+---
+title: "2.1.Self_target"
+author:
+  - Peng Chen
+date: Thu Nov 16 10:16:26 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = FALSE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+source("./R_config.R")
+output="2.1.Self_target/"
+```
+
+挑一些物种的lca前的结果来看，这样每个spacer可能有多个target，self-genome，other-genome，both等等可以区分。
+
+验证一下self-genome的比例确实很少？
+
+# Mycobacterium tuberculosis
+
+结核分枝杆菌（M. tb），也称为科赫氏杆菌，是分枝杆菌科的一种致病菌，是结核病的病原体。
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/my_source_target ~/Documents/R/CRISPR_analysis/data/
+```
+
+```{r}
+library(readr)
+library(dplyr)
+my_source_target=readr::read_delim("../data/my_source_target",delim = "\t",col_names = c("spacer_id", "target_taxid", "target_lineage", "target_kingdom", "source_genome", "CRISPR_id", "sseqid", "pident", "length", "mismath", "gapopen", "qstart", "qends", "start", "send", "evalue", "bitscore", "database", "sseqid_corrected", "sbjct_taxid", "spacer_taxid", "spacer_lineage", "spacer_kingdom", "target_genome")
+)
+my_source_target=filter(my_source_target,spacer_lineage=="k__Bacteria;p__Actinomycetota;c__Actinomycetes;o__Mycobacteriales;f__Mycobacteriaceae;g__Mycobacterium;s__Mycobacterium tuberculosis")
+
+my_source_target=distinct_all(my_source_target)
+
+length(unique(my_source_target$spacer_id))
+length(unique(my_source_target$source_genome))
+
+my_source_target$self_target=my_source_target$target_genome==my_source_target$source_genome
+
+tmp=group_by(my_source_target,spacer_id)%>%summarise(self_n=sum(self_target),not_self_n=sum(!self_target))
+
+```
+
+```{r}
+library(readr)
+library(dplyr)
+my_source_target=readr::read_delim("../data/my_source_target",delim = "\t",col_names = c("spacer_id", "target_taxid", "target_lineage", "target_kingdom", "source_genome", "CRISPR_id", "sseqid", "pident", "length", "mismath", "gapopen", "qstart", "qends", "start", "send", "evalue", "bitscore", "database", "sseqid_corrected", "sbjct_taxid", "spacer_taxid", "spacer_lineage", "spacer_kingdom", "target_genome")
+)
+my_source_target=filter(my_source_target,spacer_lineage=="k__Bacteria;p__Actinomycetota;c__Actinomycetes;o__Mycobacteriales;f__Mycobacteriaceae;g__Mycobacterium;s__Mycobacterium tuberculosis")
+
+my_source_target=distinct_all(my_source_target)
+
+length(unique(my_source_target$spacer_id))
+length(unique(my_source_target$source_genome))
+
+my_source_target$self_target=my_source_target$target_genome==my_source_target$source_genome
+
+tmp=group_by(my_source_target,spacer_id)%>%summarise(self_n=sum(self_target),not_self_n=sum(!self_target))
+
+```
+
+
+# self_genome_target
+集群上
+/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/mycob_before_lca
+```{r}
+library(readr)
+library(dplyr)
+mycob_before_lca=read_delim("mycob_before_lca",delim = "\t")
+mycob_before_lca=distinct_all(mycob_before_lca)
+
+mycob_before_lca$self_target=mycob_before_lca$target_genome==mycob_before_lca$source_genome
+tmp=group_by(mycob_before_lca,spacer_id)%>%summarise(self_n=sum(self_target),not_self_n=sum(!self_target))
+tmp=arrange(tmp,-self_n)
+readr::write_delim(tmp,file = "mycob_each_spacer",delim = "\t")
+
+#所有spacer数量
+nrow(tmp)
+#195976
+
+#全是self的数量
+filter(tmp,self_n>0,not_self_n==0)
+#2
+
+#全都不是self的数量
+filter(tmp,self_n==0,not_self_n>0)
+#195913
+
+
+195976-195913
+chisq.test(matrix(c(195913,63,6662,1),byrow = T,nrow = 2))
+```
+
+lca 后的挑一下mycob里面target最多的genome
+
+```{r}
+library(readr)
+library(dplyr)
+mycob_after_lca=read_delim("2.1.Self_target/mycob_after_lca",delim = "\t")
+# 195,979个spacer
+
+mycob_after_lca=filter(mycob_after_lca,target_lineage=="k__Bacteria;p__Actinomycetota;c__Actinomycetes;o__Mycobacteriales;f__Mycobacteriaceae;g__Mycobacterium;s__Mycobacterium tuberculosis")
+# 191,909个species-self
+
+mycob_after_lca_stat=group_by(mycob_after_lca,source_genome)%>%
+  summarise(spacer_n=n(),uniq_spacer_n=length(unique(unique_spacer_id)),
+            target_genome_n=length(unique(target_genome)))
+
+mycob_after_lca_stat=arrange(mycob_after_lca_stat,-target_genome_n)
+
+write_delim(mycob_after_lca_stat,file = "mycob_source_genome_stat")
+
+#被target最多的genome？
+> length(unique(mycob_after_lca$source_genome))
+[1] 6663
+> length(unique(mycob_after_lca$target_genome))
+[1] 286
+> length(setdiff(unique(mycob_after_lca$source_genome),unique(mycob_after_lca$target_genome)))
+[1] 6446
+> length(setdiff(unique(mycob_after_lca$target_genome),unique(mycob_after_lca$source_genome)))
+[1] 69
+
+mycob_after_lca_target=group_by(mycob_after_lca,target_genome)%>%
+  summarise(spacer_n=n(),uniq_spacer_n=length(unique(unique_spacer_id)),
+            source_genome_n=length(unique(source_genome)))
+
+mycob_after_lca_target=arrange(mycob_after_lca_target,-uniq_spacer_n)
+
+write_delim(mycob_after_lca_target,file = "mycob_target_genome_stat")
+```
+
+```{r}
+#网络？
+mycob_net=count(mycob_after_lca,source_genome,target_genome)
+write_delim(mycob_net,file = "mycob_net")
+
+mycob_net=read_delim("2.1.Self_target/mycob_net")
+devtools::load_all("~/Documents/R/MetaNet/")
+mycob_net=c_net_from_edgelist(mycob_net,direct = T)
+
+tmp_v=net_par(mycob_net,"v")[["v_index"]]
+
+
+degree_thre=35
+tmp_net=delete.vertices(mycob_net,degree(mycob_net)<degree_thre)
+cnt=1
+while ((degree(tmp_net)%>%min)<degree_thre) {
+  print(cnt)
+  print(length(tmp_net))
+  tmp_net=delete.vertices(tmp_net,degree(tmp_net)<degree_thre)
+  cnt=cnt+1
+}
+tmp_net
+
+tmp_net=as.metanet(tmp_net)
+plot(tmp_net)
+```
+
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/mycob_source_genome_stat ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/mycob_target_genome_stat ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/mycob_after_lca ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/mycob_net ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+```
+
+```{r}
+library(readr)
+library(dplyr)
+mycob_after_lca=read_delim("2.1.Self_target/mycob_after_lca",delim = "\t")
+
+nrow(mycob_after_lca)
+
+length(unique(mycob_after_lca$unique_spacer_id))
+
+count(mycob_after_lca,unique_spacer_id)%>%arrange(-n)
+
+mycob_after_lca_stat=read_delim("2.1.Self_target/mycob_source_genome_stat")
+mycob_after_lca_target=read_delim("2.1.Self_target/mycob_target_genome_stat")
+
+lapply((1:10)*100, \(i)venn(list(mycob_target$target_genome,head(mycob_source$source_genome,i))))
+
+venn(list(mycob_target$target_genome,(mycob_source$source_genome)))
+```
+
+
+## find array
+
+之前所有crisprcasfinder结果分布在不同文件夹里，要通过genome_list查询
+
+```{r}
+library(readr)
+library(dplyr)
+gls1=read_delim("../last_bac_ccfinder/genome_list",delim = "\t",col_names = "dir")
+gls1=data.frame(p="last_bac_ccfinder",gls1)
+gls2=read_delim("../crisprfinder/genome_list",delim = "\t",col_names = "dir")
+gls2=data.frame(p="crisprfinder",gls2)
+
+gls=rbind(gls1,gls2)
+library(pcutils)
+
+tmp=cbind(gls,strsplit2((gls[,2,drop=T]),split = "/"))
+
+all_genomelist=data.frame(p=tmp$p,dir=tmp$V2,genome=tmp$V3)
+save(all_genomelist,file = "all_genomelist.rda")
+
+library(readr)
+library(dplyr)
+search_genome=read_delim("/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/genome_stat/Corynebacterium_diphtheriae_source_genome_stat")
+search_genome2=read_delim("/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/genome_stat/Corynebacterium_diphtheriae_target_genome_stat")
+search_genome=rbind(search_genome["source_genome"]%>%rename("genome"="source_genome"),
+                    search_genome2["target_genome"]%>%rename("genome"="target_genome"))%>%distinct()
+
+#/data/home/jianglab/share/bac2pc 下
+load("all_genomelist.rda")
+search_res=right_join(all_genomelist,search_genome)
+
+search_res=arrange(search_res,p,dir)
+#寻找cripsr文件
+
+dirs=distinct(search_res,p,dir)
+
+#6715 <NA> <NA> GCF_000668315.1_Myco_tube_UT0037_V1_genomic.fna
+
+dirs=na.omit(dirs)
+#devtools::load_all("../../iCRISPR")
+library(iCRISPR)
+genome_res=NULL
+for (i in seq_len(nrow(dirs))) {
+  print(i)
+  tmp_genome=filter(search_res,p==dirs[i,1,drop=T],dir==dirs[i,2,drop=T])%>%pull(genome)
+  load(paste0("../",dirs[i,1,drop=T],"/rdals/",dirs[i,2,drop=T],".rda"))
+  if(is.null(genome_res))genome_res=res[tmp_genome]
+  else genome_res=c(genome_res,res[tmp_genome])
+}
+class(genome_res)="multi_crispr"
+save(genome_res,file = "Corynebacterium_diphtheriae_all_crispr.rda")
+
+```
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/bac2pc/mycob_all_crispr.rda ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+scp -P 45777 -r pengchen@10.73.29.10:/data/home/jianglab/share/bac2pc/Corynebacterium_diphtheriae_all_crispr.rda ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+```
+
+```{r}
+load("2.1.Self_target/Corynebacterium_diphtheriae_all_crispr.rda")
+Corynebacterium_diphtheriae=genome_res
+
+View(Corynebacterium_diphtheriae$GCF_024969205.1_ASM2496920v1_genomic.fna$CRISPR)
+View(Corynebacterium_diphtheriae$GCA_902809055.1_FRC0419_genomic.fna$CRISPR)
+
+CRISPR_df=do.call(rbind,lapply(Corynebacterium_diphtheriae,\(i)i$CRISPR))
+CRISPR_df=filter(CRISPR_df,evidence_level==4)
+
+consensus_repeat_df=count(CRISPR_df,consensus_repeat)
+
+plot_crispr(Corynebacterium_diphtheriae$GCA_902809595.1_FRC0522_genomic.fna,"CADDHQ010000044.1")
+plot_crispr(Corynebacterium_diphtheriae$GCA_902807625.1_CIP107526_genomic.fna,"CADDAB010000027.1")
+
+
+a1=get_Arrays(Corynebacterium_diphtheriae$GCA_902809595.1_FRC0522_genomic.fna)[["CADDHQ010000044.1@CRISPR:1"]]
+a2=get_Arrays(Corynebacterium_diphtheriae$GCA_902807625.1_CIP107526_genomic.fna)[["CADDAB010000027.1@CRISPR:1"]]
+
+res=compare_array(a1$spacers,a2$spacers,identity = T)
+plot.array_comparison(res)
+align_array(res)->align_res
+plot.array_comparison(align_res)
+
+
+a1=get_Arrays(Corynebacterium_diphtheriae$GCA_902808585.1_FRC0182_genomic.fna)[["CADDDX010000001.1@CRISPR:1"]]
+a2=get_Arrays(Corynebacterium_diphtheriae$GCA_902807625.1_CIP107526_genomic.fna)[["CADDAB010000027.1@CRISPR:1"]]
+
+res=compare_array(a1$spacers,a2$spacers,identity = F)
+plot.array_comparison(res)
+align_array(res)->align_res
+plot.array_comparison(align_res)
+
+
+```
+
+
+
+
+# other species
+
+```{r}
+"Xanthomonas_translucens"
+"Riemerella_anatipestifer"
+"Clostridioides_difficile"
+"Alkalihalobacillus_clausii"
+"Corynebacterium_diphtheriae"
+"Lactobacillus_acidophilus"
+"Listeria_booriae"
+"Listeria_monocytogenes"
+
+library(readr)
+library(dplyr)
+
+sp="Alkalihalobacillus_clausii"
+mycob_after_lca=read_delim(paste0("../",sp,"_after_lca"),delim = "\t")
+# 764915个spacer
+
+source_lin=mycob_after_lca[1,"spacer_lineage",drop=T]
+mycob_after_lca=filter(mycob_after_lca,target_lineage==!!source_lin)
+# 377,537个species-self
+
+mycob_after_lca_stat=group_by(mycob_after_lca,source_genome)%>%
+  summarise(spacer_n=n(),uniq_spacer_n=length(unique(unique_spacer_id)),
+            target_genome_n=length(unique(target_genome)))
+
+mycob_after_lca_stat=arrange(mycob_after_lca_stat,-target_genome_n)
+
+write_delim(mycob_after_lca_stat,file = paste0(sp,"_source_genome_stat"))
+
+mycob_after_lca_target=group_by(mycob_after_lca,target_genome)%>%
+  summarise(spacer_n=n(),uniq_spacer_n=length(unique(unique_spacer_id)),
+            source_genome_n=length(unique(source_genome)))
+
+mycob_after_lca_target=arrange(mycob_after_lca_target,-uniq_spacer_n)
+
+write_delim(mycob_after_lca_target,file = paste0(sp,"_target_genome_stat"))
+
+
+#被target最多的genome？
+print(length(unique(mycob_after_lca$source_genome)))
+
+print(length(unique(mycob_after_lca$source_genome)))
+
+print(length(union(unique(mycob_after_lca$source_genome),unique(mycob_after_lca$target_genome))))
+
+print(length(setdiff(unique(mycob_after_lca$source_genome),unique(mycob_after_lca$target_genome))))
+
+print(length(setdiff(unique(mycob_after_lca$target_genome),unique(mycob_after_lca$source_genome))))
+# [1] 492
+# [1] 219
+# [1] 350
+# [1] 77
+
+```
+
+
+```{bash}
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/Corynebacterium_diphtheriae_target_genome_stat ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/Corynebacterium_diphtheriae_source_genome_stat ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/Corynebacterium_diphtheriae_after_lca ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+
+scp -P 45777 -r pengchen@10.73.29.10:/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/genome_stat/sp_genome_stat.tar.gz ~/Documents/R/CRISPR_analysis/analysis/2.1.Self_target/
+```
+
+```{r}
+
+sp="Corynebacterium_diphtheriae"
+mycob_after_lca=read_delim(paste0("2.1.Self_target/",sp,"_after_lca"),delim = "\t")
+mycob_net=count(mycob_after_lca,source_genome,target_genome)
+write_delim(mycob_net,file = "codi_net")
+
+mycob_net=read_delim("2.1.Self_target/codi_net")
+devtools::load_all("~/Documents/R/MetaNet/")
+mycob_net=c_net_from_edgelist(mycob_net,direct = T)
+
+mycob_net_un=igraph::as.undirected(mycob_net)
+mycob_net_modu=modu_dect(mycob_net_un)
+
+c_net_plot(mycob_net_modu,plot_module = T)
+c_net_plot(mycob_net_modu,plot_module = T,coors = g_lay_nice(mycob_net_modu))
+
+```

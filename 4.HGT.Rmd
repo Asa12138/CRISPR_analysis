@@ -1,0 +1,769 @@
+---
+title: "4.HGT"
+author:
+  - Asa12138
+date: Mon Apr  8 21:56:49 2024
+link-citations: yes
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       echo = TRUE, #whether to include the source code in the output
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = TRUE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+source("./R_config.R")
+```
+
+## Salmonella enterica
+
+```{bash}
+indir=/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/bacteria
+for i in ` cut -f1 salm_50`
+do
+gunzip ${indir}/${i}.gz -c > salm_50_genome/${i}
+done
+
+skani triangle salm_50_genome/* --full-matrix >salm_50_ani.txt
+
+scpjq /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/salm_50_ani.txt ~/Documents/R/CRISPR_analysis/analysis/4.HGT/
+scpjq /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/salm_50 ~/Documents/R/CRISPR_analysis/analysis/4.HGT/
+```
+
+
+```{r}
+salm_50=read_delim("4.HGT/salm_50",col_names = c("genome","taxid","species","kingdom","crispr","gram"))
+
+salm_ani=read_delim("4.HGT/salm_50_ani.txt",skip = 1,col_names = F)
+salm_ani=column_to_rownames(salm_ani,"X1")
+rownames(salm_ani)=gsub("salm_50_genome/","",rownames(salm_ani))
+colnames(salm_ani)=rownames(salm_ani)
+
+salm_ani=salm_ani[salm_50$genome,salm_50$genome]
+
+anno=data.frame(row.names = salm_50$genome,crispr=salm_50$crispr)
+
+pdf("4.HGT/salm_50_ani_heatmap.pdf",height = 6)
+pheatmap::pheatmap(salm_ani,cluster_cols = F,cluster_rows = F,show_colnames = F,main = "Salmonella enterica ANI",
+                   show_rownames = F,annotation_row = anno,annotation_col = anno,border_color = NA)
+dev.off()
+
+data.frame(ani=colSums(salm_ani)/100)%>%group_box(.,"crispr",anno,p_value1 = T)
+```
+
+```{bash}
+# gtdb-tree 
+#SBATCH --cpus-per-task=4
+#SBATCH --mem-per-cpu=30g
+
+gtdbtk classify_wf --genome_dir salm_50_genome/  --out_dir classify_wf_out --cpus 4 --skip_ani_screen
+```
+
+```{bash}
+scpjq -r /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/classify_wf_out/classify/ ~/Documents/R/CRISPR_analysis/analysis/4.HGT/
+mv 4.HGT/classify 4.HGT/salm_50_classify
+```
+
+```{r}
+salm_class=read_delim("4.HGT/salm_50_classify/gtdbtk.bac120.summary.tsv",col_names = T)
+salm_class$Species=gsub("d__.*;s__","",salm_class$classification)
+salm_class=arrange(salm_class,Species)
+salm_ani2=salm_ani[paste0(salm_class$user_genome,".fna"),paste0(salm_class$user_genome,".fna")]
+anno2=data.frame(row.names = paste0(salm_class$user_genome,".fna"),Species=salm_class$Species)
+
+pdf("4.HGT/salm_50_ani_heatmap2.pdf",height = 6)
+pheatmap::pheatmap(salm_ani2,cluster_cols = F,cluster_rows = F,show_colnames = F,main = "Salmonella enterica ANI",
+                   show_rownames = F,annotation_row = anno2,annotation_col = anno2,border_color = NA)
+dev.off()
+```
+
+```{r}
+library(ggtree)
+library(ggtreeExtra)
+tr=read.tree("4.HGT/salm_50_classify/gtdbtk.bac120.classify.tree.1.tree")
+
+tr2=ape::drop.tip(tr,setdiff(tr$tip.label,salm_class$user_genome))
+tr2=fortify(tr2)
+anno_tr=cbind(tr2,anno[tr2$label,,drop=F],anno2[tr2$label,,drop=F])
+
+ggtree(tr2)+
+  geom_tiplab(aes(label=anno_tr$Species,color=anno_tr$crispr),size=3)+
+  geom_fruit(data = anno_tr[,c("label","Species")],
+             geom = geom_point,position = "identity",shape=21,size=3,
+             mapping = aes(y=label,fill=Species))+
+  scale_color_pc(name="CRISPR")+xlim(0,0.009)
+ggsave("4.HGT/salm_50_gtbd_tree.pdf",height = 10,width = 10)
+```
+
+## All bacteria and archaea
+
+```{bash}
+indir=/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/bacteria
+mkdir 30_filter_selected_genomes_dir
+for i in `cut -f1 /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/30_filter_selected_genomes.txt`
+do
+echo $i
+gunzip ${indir}/${i}.gz -c > 30_filter_selected_genomes_dir/${i}
+done
+
+# 古菌, crispr +/- 各挑了20个genome
+indir=/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/archaea
+mkdir arc20_filter_selected_genomes_dir
+for i in `cut -f1 /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/arc20_filter_selected_genomes.txt`
+do
+echo $i
+gunzip ${indir}/${i}.gz -c > arc20_filter_selected_genomes_dir/${i}
+done
+
+# 古菌, crispr +/- 各挑了10个genome
+indir=/data/home/jianglab/share/kraken2DBbuild/rsgb_20230119/zipped/archaea
+mkdir arc10_filter_selected_genomes_dir
+for i in `cut -f1 /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/arc10_filter_selected_genomes.txt`
+do
+echo $i
+gunzip ${indir}/${i}.gz -c > arc10_filter_selected_genomes_dir/${i}
+done
+
+```
+
+```{bash}
+# gtdb-tree 
+#SBATCH --cpus-per-task=16
+#SBATCH --mem-per-cpu=10g
+
+gtdbtk classify_wf --genome_dir 30_filter_selected_genomes_dir/  --out_dir 30_filter_selected_genomes_classify_wf_out --cpus 16 --skip_ani_screen
+
+gtdbtk classify_wf --genome_dir arc10_filter_selected_genomes_dir/  --out_dir arc10_filter_selected_genomes_classify_wf_out --cpus 16 --skip_ani_screen
+```
+
+```{bash}
+scpjq -r /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/30_filter_selected_genomes_classify_wf_out/classify/ ~/Documents/R/CRISPR_analysis/analysis/4.HGT/
+scpjq -r /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/30_filter_selected_genomes.txt ~/Documents/R/CRISPR_analysis/analysis/4.HGT/
+
+scpjq -r /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/arc10_filter_selected_genomes_classify_wf_out/classify/ ~/Documents/R/CRISPR_analysis/analysis/4.HGT/
+scpjq -r /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_cas_acr_aca/arc10_filter_selected_genomes.txt ~/Documents/R/CRISPR_analysis/analysis/4.HGT/
+```
+
+```{r}
+selected_genomes=read_delim("4.HGT/30_filter_selected_genomes.txt")
+selected_genomes$genome=gsub(".fna","",selected_genomes$genome)
+selected_sp=unique(selected_genomes$species)
+
+#arc中有一个genoem被放到细菌里了
+selected_class=read_delim("4.HGT/30_filter_selected_genomes_classify/gtdbtk.bac120.summary.tsv",col_names = T)
+selected_class$Species=strsplit2(selected_class$classification,";")%>%
+  pctax::pre_tax_table(tax_levels = c("d", "p", "c", "o", "f", "g", "s", "st"))%>%pull(V7)%>%
+  gsub("s__","",.)
+selected_class=arrange(selected_class,Species)
+
+tree_map=read_delim("4.HGT/30_filter_selected_genomes_classify/gtdbtk.bac120.tree.mapping.tsv")
+selected_genomes=left_join(selected_genomes,tree_map,by = c("genome"="user_genome"))
+selected_genomes=as.data.frame(selected_genomes)
+rownames(selected_genomes)=selected_genomes$genome
+```
+
+```{r}
+library(ggtree)
+library(ggtreeExtra)
+
+plist=list()
+
+for (i in seq_along(selected_sp)) {
+  print(selected_sp[i])
+  tmp_genomes=filter(selected_genomes,species==selected_sp[i])%>%pull(genome)
+  tmp_tr_num=filter(selected_genomes,species==selected_sp[i])%>%pull(class_tree_mapped)%>%unique()%>%na.omit()
+  if(length(tmp_tr_num)>1){
+    warning("Multiple tree number")
+  }
+  tr=read.tree(paste0("4.HGT/30_filter_selected_genomes_classify/gtdbtk.bac120.classify.tree.",tmp_tr_num[1],".tree"))
+  
+  tr2=ape::drop.tip(tr,setdiff(tr$tip.label,tmp_genomes))
+  tr2=fortify(tr2)
+  
+  tmp2=filter(selected_class,user_genome%in%tmp_genomes)%>%column_to_rownames("user_genome")
+  anno_tr=cbind(tr2,selected_genomes[tr2$label,"crispr_strict",drop=F],tmp2[tr2$label,"Species",drop=F])
+  
+  plist[[i]]=ggtree(anno_tr)+
+    geom_tiplab(
+                aes(label=Species,color=crispr_strict),size=3)+
+    geom_fruit(data = anno_tr[,c("label","Species")],
+               geom = geom_point,position = "identity",shape=21,size=3,
+               mapping = aes(y=label,fill=Species.y))+
+    ggtitle(selected_sp[i])+
+    scale_fill_pc(name="Species","col2")+
+    scale_color_pc(name="CRISPR")+xlim(0,1.4*max(tr2$x))+theme_tree2()
+}
+
+plotpdf(plist = plist,file = "4.HGT/30_filter_selected_genomes_tree.pdf",height = 6,width = 10)
+```
+
+### arc
+
+```{r}
+selected_genomes=read_delim("4.HGT/arc10_filter_selected_genomes.txt")
+selected_genomes$genome=gsub(".fna","",selected_genomes$genome)
+selected_genomes=as.data.frame(selected_genomes)
+rownames(selected_genomes)=selected_genomes$genome
+selected_sp=unique(selected_genomes$species)
+
+#arc中有一个genoem被放到细菌里了
+selected_class=read_delim("4.HGT/classify/gtdbtk.ar53.summary.tsv",col_names = T)
+selected_class$Species=strsplit2(selected_class$classification,";")%>%
+  pctax::pre_tax_table(tax_levels = c("d", "p", "c", "o", "f", "g", "s", "st"))%>%pull(V7)%>%
+  gsub("s__","",.)
+selected_class=arrange(selected_class,Species)
+```
+
+
+```{r}
+library(ggtree)
+library(ggtreeExtra)
+
+plist=list()
+tr=read.tree("4.HGT/arc_10_filter_selected_genomes_classify/gtdbtk.ar53.classify.tree")
+
+for (i in seq_along(selected_sp)) {
+  print(selected_sp[i])
+  tmp_genomes=filter(selected_genomes,species==selected_sp[i])%>%pull(genome)
+  
+  tr2=ape::drop.tip(tr,setdiff(tr$tip.label,tmp_genomes))
+  tr2=fortify(tr2)
+  
+  tmp2=filter(selected_class,user_genome%in%tmp_genomes)%>%column_to_rownames("user_genome")
+  anno_tr=cbind(tr2,selected_genomes[tr2$label,"crispr_strict",drop=F],tmp2[tr2$label,"Species",drop=F])
+  
+  plist[[i]]=ggtree(anno_tr)+
+    geom_tiplab(
+                aes(label=Species,color=crispr_strict),size=3)+
+    geom_fruit(data = anno_tr[,c("label","Species")],
+               geom = geom_point,position = "identity",shape=21,size=3,
+               mapping = aes(y=label,fill=Species.y))+
+    ggtitle(selected_sp[i])+
+    scale_fill_pc(name="Species","col2")+
+    scale_color_pc(name="CRISPR")+xlim(0,1.4*max(tr2$x))+theme_tree2()
+}
+
+plotpdf(plist = plist,file = "4.HGT/arc_10_filter_selected_genomes_tree.pdf",height = 6,width = 10)
+```
+
+
+### distance
+
+获取每一个cripsr-positive的genome最近的crispr-negative的genome pair
+
+```{r}
+dis_df=list()
+for (i in seq_along(selected_sp)) {
+  print(selected_sp[i])
+  tmp_genomes=filter(selected_genomes,species==selected_sp[i])%>%pull(genome)
+  tmp_tr_num=filter(selected_genomes,species==selected_sp[i])%>%pull(class_tree_mapped)%>%unique()%>%na.omit()
+  if(length(tmp_tr_num)>1){
+    warning("Multiple tree number")
+  }
+  tr=read.tree(paste0("4.HGT/classify/gtdbtk.bac120.classify.tree.",tmp_tr_num[1],".tree"))
+  
+  tr2=ape::drop.tip(tr,setdiff(tr$tip.label,tmp_genomes))
+  cophenetic(tr2)->tmp_dis
+  
+  selected_genomes[tmp_genomes,]%>%filter(crispr_strict=="crispr_positive")%>%pull(genome)->tmp_pos
+  selected_genomes[tmp_genomes,]%>%filter(crispr_strict=="crispr_negative")%>%pull(genome)->tmp_neg
+  
+  tmp_dis[tmp_pos[tmp_pos%in%rownames(tmp_dis)],tmp_neg[tmp_neg%in%rownames(tmp_dis)]]->tmp_dis2
+  tmp_dis_df=melt(tmp_dis2,varnames=c("crispr_positive","crispr_negative"),value.name = "distance")
+  tmp_dis_df=group_by(tmp_dis_df,crispr_positive)%>%top_n(1,-distance)%>%ungroup()
+  tmp_dis_df=distinct(tmp_dis_df,crispr_positive,.keep_all = TRUE)
+  dis_df[[i]]=data.frame(species=selected_sp[i],tmp_dis_df)
+  # colnames(tmp_dis2)[apply(tmp_dis2,2,which.min)]
+}
+dis_df=do.call(rbind,dis_df)
+
+write_delim(dis_df,"4.HGT/30_filter_selected_genomes_pair_distance.txt",delim = "\t")
+```
+
+
+```{r}
+dis_df=list()
+for (i in seq_along(selected_sp)) {
+  print(selected_sp[i])
+  tmp_genomes=filter(selected_genomes,species==selected_sp[i])%>%pull(genome)
+  tr2=ape::drop.tip(tr,setdiff(tr$tip.label,tmp_genomes))
+  cophenetic(tr2)->tmp_dis
+  
+  selected_genomes[tmp_genomes,]%>%filter(crispr_strict=="crispr_positive")%>%pull(genome)->tmp_pos
+  selected_genomes[tmp_genomes,]%>%filter(crispr_strict=="crispr_negative")%>%pull(genome)->tmp_neg
+  
+  tmp_dis[tmp_pos[tmp_pos%in%rownames(tmp_dis)],tmp_neg[tmp_neg%in%rownames(tmp_dis)]]->tmp_dis2
+  tmp_dis_df=melt(tmp_dis2,varnames=c("crispr_positive","crispr_negative"),value.name = "distance")
+  tmp_dis_df=group_by(tmp_dis_df,crispr_positive)%>%top_n(1,-distance)%>%ungroup()
+  tmp_dis_df=distinct(tmp_dis_df,crispr_positive,.keep_all = TRUE)
+  dis_df[[i]]=data.frame(species=selected_sp[i],tmp_dis_df)
+  # colnames(tmp_dis2)[apply(tmp_dis2,2,which.min)]
+}
+dis_df=do.call(rbind,dis_df)
+
+write_delim(dis_df,"4.HGT/arc_10_filter_selected_genomes_pair_distance.txt",delim = "\t")
+```
+
+
+## remove Array
+
+```{bash}
+mkdir test_cas_exist
+crispr$Cas$sequence[3:9]%>%paste0(.,collapse = "NNNN")%>%clipr::write_clip() #复制给cas_typeIE.fa
+
+cat GCA_013553575.1_PDT000794173.1_genomic.fna cas_typeIE.fa >GCA_013553575.1_PDT000794173.1_genomic_add.fna
+cat GCA_014937925.1_PDT000863026.1_genomic.fna cas_typeIE.fa >GCA_014937925.1_PDT000863026.1_genomic_add.fna
+
+skani triangle ./*.fna --full-matrix >test_cas_ani.txt
+skani triangle ./*_genomic.fna --full-matrix
+```
+
+获得genome中的Array，CAS区间：
+```{r}
+#!/usr/local/bin/Rscript
+#PengChen 2024/06/08
+#Usage: Rscript get_crispr_cas_region.R -i search_file -o out_prefix
+for (i in c("optparse","iCRISPR","readr","dplyr")) {
+  if (!requireNamespace(i, quietly = TRUE)) {
+    stop("Please install ",i," first.")
+  }
+}
+
+library(optparse)
+# 描述参数的解析方式
+option_list <- list(
+  make_option(c("-i", "--input"), type = "character", default = FALSE,
+              action = "store", help = "Input search file: one column is genome name. e.g., GCA_902808855.1_FRC0313_genomic.fna"
+  ),
+  make_option(c("-o", "--out_prefix"), type = "character", default = FALSE,
+              action = "store", help = "output perfix. e.g., ./output/test"
+  )
+)
+
+# 解析参数
+opt = parse_args(OptionParser(option_list = option_list, usage = "This Script is for getting CRISPR array and CAS region from genomes."))
+
+search_file=opt$input
+out_prefix=opt$out_prefix
+
+library(readr)
+library(dplyr)
+library(iCRISPR)
+search_genome=read_delim(search_file,col_names = "genome",delim = "\t")
+
+#/data/home/jianglab/share/bac2pc 下
+load("/data/home/jianglab/share/bac2pc/all_genomelist.rda")
+search_res=right_join(all_genomelist,search_genome)
+
+search_res=arrange(search_res,p,dir)
+#寻找cripsr文件
+
+dirs=distinct(search_res,p,dir)
+
+dirs=na.omit(dirs)
+#devtools::load_all("../../iCRISPR")
+library(iCRISPR)
+genome_res=NULL
+for (i in seq_len(nrow(dirs))) {
+  print(i)
+  tmp_genome=filter(search_res,p==dirs[i,1,drop=T],dir==dirs[i,2,drop=T])%>%pull(genome)
+  load(paste0("/data/home/jianglab/share/",dirs[i,1,drop=T],"/rdals/",dirs[i,2,drop=T],".rda"))
+  if(is.null(genome_res))genome_res=res[tmp_genome]
+  else genome_res=c(genome_res,res[tmp_genome])
+}
+class(genome_res)="multi_crispr"
+save(genome_res,file = "temp_all_crispr.rda")
+
+cas_region=list()
+array_region=list()
+for (i in seq_along(genome_res)) {
+  crispr=genome_res[[i]]
+  cas_region[[i]]=dplyr::distinct(crispr$Cas[,c("genome","seqid","start","end")])
+  array_region[[i]]=crispr$CRISPR[,c("genome","seqid","start","end")]
+}
+cas_region_df=do.call(rbind,cas_region)
+array_region_df=do.call(rbind,array_region)
+
+if(!is.null(cas_region_df)){
+  write_delim(cas_region_df,file = paste0(out_prefix,"_cas_region.txt"),delim = "\t")
+} else warning("No cas region found")
+if(!is.null(array_region_df)){
+  write_delim(array_region_df,file = paste0(out_prefix,"_array_region.txt"),delim = "\t")
+} else warning("No array region found")
+message("Done!")
+
+```
+
+
+## Map
+
+工具：/data/home/jianglab/share/tools/mapseq-2.1.1-linux/mapseq
+数据库：/data/home/jianglab/share/tools/mapseq_db
+
+MapSeq references files：
+ otus.info
+ 935 MB
+Information about the OTU sequences.
+ mapref-3.0.tar.gz
+ 315 MB
+Information about MAPv3 OTU sequences.
+ otus.rename.map1
+ 40 MB
+OTU Mapping file: BS16:90_7 (old version) -> 90_7 (new MAPv3 version)
+
+Samples and runs files：
+ samples.info，类似fasta格式，有样品信息
+ 5.7 GB
+Information about all analyzed samples.
+ samples.env.info，表格，有环境，有经纬度信息
+ 298 MB
+Information about environments of samples.
+ runs.info.gz
+ 57.9 MB
+Information about runs.
+
+Downloads Samples and Taxa file prepared：
+ otus.97.allinfo，ID形式MAPv3;90_16;96_20650;97_42874
+ 273.6 MB
+Information about the OTU reference sequences. Representative sequence, number of sequences, consensus taxonomy, and closest known taxonomic classified sequence (including sequence identity and alignment score).
+ samples-otus.97.mapped.gz
+ 5.7 GB
+OTU tables with mapped OTU counts for each analyzed sample. Sample headers include: total ribosomal RNA reads, mapped reads and number of OTUs in the sample.
+ samples-otus.97.metag.minfilter.gz
+ 3.8 GB
+Filtered subset of OTU tables that are non-transcriptomic metagenomic samples (amplicon and shotgun sequencing only). Samples included contain at least 1000 mapped reads and map to 20 different OTUs.
+
+```{bash}
+$ head otus.97.allinfo # 代表性序列、序列数、共有分类法和最接近的已知分类序列（包括序列同一性和比对评分）。
+MAPv3;90_16;96_20650;97_42874	1					ATGAACGCTGGCGGCGTGCTTAACACATGCAAGTCGAACGAAGCATTTTAGATGAAGTTTTCGGATGGAATTTGAAATGACTGAGTGGCGGACGGGTGAGTAACGCGTGGGCAACCTGCCCTGTACAGGGGGACAACAGTTGGAAACGACTGCTAATACCGCATAAGCGCACAGTGCCGCATGGCACGGTGTGAAAAACTCCGGTGGTACAGGATGGGCCCGCGTCTGATTAGGTAGTTGGTGAGGTAATGGCCCACCAGGCCGACGATCAGTAGCCGACCTGAGAGGGTGACCGGCCACATTGGGACTGAGACACGGCCCAAACTCCTACGGGAGGCAGCAGTGGGGAATATTGCACAATGGGGGAAACCCTGATGCAGCGACGCCGCGTGAGCGAAGAAGTATTTCGGTATGTAAAGCTCTATCAGCAAGGAAGAAAATGACGGTACCTGACTAAGAAGCCCCGGCTAACTACGTGCCAGCAGCCGCGGTAATACGTAGGGGGCAAGCGTTATCCGGATTTACTGGGTGTAAAGGGAGCGTAGACGAAAAGCAAGTCTGATGTGAAAGGCATGGGCTCAGCCCGTGGACTGCATTGGAAACTGTTTTTCTAGAGTGCCGGAGAGGTAAGCGGAATTCCTAGTGTAGCGGTGAAATGCGTAGATATTAGGAGGAACACCAGTGGCGAAGGCGGCTTACTGGACGGTAACTGACGTTGAGGCTCGAAAGCGTGGGGAGCAAACAGGATTAGATACCCTGGTAGTCCACGCGGTAAACGATGAATACTAGGTGTTGGGTAGCAAAGCTATTCGGTGCCGCAGCAAACGCAATAAGTATTCCACCTGGGGAGTACGTTCGCAAGAATGAAACTCAAAGGAATTGACGGGGACCCGCACAAGCGGTGGAGCATGTGGTTTAATTCGAAGCAACGCGAAGAACCTTACCAAGTCTTGACATCCCTCTGACGAGCGAGTAATGTTGCTTTTCCTTCGGGACAGAGGAGACAGGTGGTGCATGGTTGTCGTCAGCTCGTGTCGTGAGATGTTGGGTTAAGTCCCGCAACGAGCGCAACCCTTATCCTTAGTAGCCAGCGAGAAAGGTCGGGCACTCTAGGGAGACTGCCAGGGACAACCTGGAGGAAGGTGGGGATGACGTCAAATCATCATGCCCCTTATGACTTGGGCTACACACGTGCTACAATGGCGTAAACAAAGGGAAGCGAGCCCGCGAGGGGGAGCAAATCTCAAAAATAACGTCCCAGTTCGGACTGTAGTCTGCAACCCGACTACGCGAAGCTGGAATCGCTAGTAATCGCGAATCAGAATGTCGCGGTGAATACGTTCCCGGGTCT	KF075129:1..1352	d__Bacteria;p__Firmicutes_A;c__Clostridia;o__Lachnospirales;f__Lachnospiraceae;g__Clostridium_M	KF075129:1..1352	GB_GCA_900447015.1~UAVW01000001.1		0.9363905191421509	1175	Bacteria;Firmicutes;Clostridia;Clostridiales;Lachnospiraceae	KF075129:1..1352	NZ_GG657593:2768..4308		0.9356508851051331	1166
+
+$ zcat samples-otus.97.mapped.gz|head # 样本标题包括：样本中总核糖体 RNA 读数、映射读数和 OTU 数量
+>SRR2459896.SRS1074972	66481	23845	497
+90_246;96_8626;97_10374	4920
+90_15828;96_741;97_864	4546
+90_2004;96_8630;97_10378	3210
+90_3;96_530;97_6036	2516
+90_1349;96_5812;97_6987	1160
+90_5;96_8632;97_10380	779
+90_207;96_8631;97_10379	687
+90_1043;96_25689;97_36142	536
+90_34;96_226;97_248	417
+
+$ head -n2 otus.info
+OTU	Tax	SpeciesRep	SeqCount	GoldCount	GenomeCount	TypeStrains	Strains	Genomes	GoldSeqs	Aliases	GoldHit	GoldID	GoldScore	RepSpecies	Taxaname	OrigTax	RepSequenceID	RepSequence
+90_17776;96_71281;97_92606;98_125911;99_193128	Archaea		1	0	0					NR_074195:1..1470	725	0.75392002		Archaea	Archaea	KC471280:1..1464	TACCCGTTGATCCTGCGGGAGGTCGCTGCTATCAGAATTCGACTTAACTAAGCTAGTTCTGGGGCTTCTTCGGAAGCACCGGCGTAATGTTCCGTAACACGTCGATAATCTGCCCTAAGGCTCAGGATAACCTCGGGAAACTGAGGCTAAAACTGGATATGAGATTAATACTGGAATGTTTTTTCTCTGAAAAGCAATGCCTTAGGATGAGTCGGCGCCCGATTAGGTAGTTGGTGGGGTAATGGCCCACCAAGCCGAAGATCGGTAGGGGCCTTGAGAGAGGTAGCCTCGAGGAGGACACTGAGATAAGGGTCCTGACTCTACGGAGTATAGCAAGTGCGAAAACTTTACAATACACGAAAGTGTGATAAGGGAATTCTGAGTGCCTATGTTATGCATAGGCTTTTGCCAAGAGTAAATATCTTGGAGAATAAGTGGTGGGCGAGACTGGTGCCAGCAGCCGCGGTAACACCAGCGCCACAAGTAGGGACCGTGTTTATTGGGCCTAAAGCGTTTGTAGCCGGTTAAATAAATCTCCTGTGAAATTGTTGGGCTTAACCTAACAGCGTGCAGAAGACACTATTTAACTTGAGACCGGGAGGAGTCAGAGGTATTCTAGGGGTAGCGGTAAAATGCAATAATCCCTCGAGGACCACCTGTGGCGAAGGCGTCTGACTAGAACGGGTCTGACGGTGAGAAACGAAAGCCAGGGGAGCGAACCGGATTAGATACCCGAGTAGTCCTGGCCGTAAACGCTGCGAGCTAGGTGTTGCATATTTTTCGTGAATATGCAGTGTCGAAGTGAAGACGTTAAGCTCGCCGCCTGGGTAGTACGGTCGCAAGACTGAAACTTAAAGGAATTGGCGGGGGAGCACAACAAGGGGTGCGGCGTGCGGTTTAATCCAACTCAACGCGGAGAATCTCACCAGAGGCGACGGCAGGATGAAAGTCAGGTTGAAGACCTTACTTAACAAGCCGAGAGGTGGTGCATGGCCGTCGTCAGCTCGTGCCGTGAGGTGTCCTGTTAAGTCAGGCAACGAGCGAGACCTGCACTTACAATTGCCAGCAGCTCTTTTAGAGGACTGGGCACAATGTAAGGACTGCCTTGGAAACAAGGAGGAAGGTGCAGGCAACGATAGGTCTGTATGCCCCGAATCCTCTGGGCTACACGCGCGCAACAATGGTACGGACAATGGGATGCAACTCCGAAAGGAGAAGCTAAACCTCTAAACCTTACCTCAGTCCAGATTGAGGGTTGTAACTCATCCTCATGACGTCGGAATCCCTAGTAACCAGACTTTAGCATAGTCCGGTGAATATGTCCCTGCTCCTTGCACACACCGCCCGTCAAACCAACCGAGCAGGGTTTAGGTGAAACTCAGTCTTTAACTAAGTTGAATCTAAGCTCAGTGAGGTGGGTTAAGTCGTCACAAGGTAGCCGTAGGGAACCTGCGGCTGGATCA
+
+$ head otus.rename.map1
+B16S;90_0	90_1
+B16S;90_1	90_2
+B16S;90_3	90_3
+B16S;90_4	90_4
+B16S;90_6	90_5
+B16S;90_7	90_6
+B16S;90_8	90_7
+B16S;90_10	90_8
+B16S;90_11	90_9
+B16S;90_14	90_10
+
+$ head mapref-3.0/mapref-3.0.fna.otutax
+#cutoff: 0.91:0.13 0.97:0.06 0.98:0.03 0.985:0.02 0.99:0.01
+#name: MAP_hOTUs3.0
+#levels: OTU90% OTU96% OTU97% OTU98% OTU99%
+KC471280:1..1464	90_17776;96_71281;97_92606;98_125911;99_193128
+EU420701:1..1431	90_17777;96_71296;97_92625;98_125936;99_193169
+FJ810526:1..1401	90_17778;96_71384;97_92755;98_126150;99_193561
+DQ924745:1..1337	90_17669;96_68973;97_89633;98_121931;99_187410
+DQ179029:1..1363	90_17669;96_68973;97_89634;98_122621;99_188339
+AY882807:1..1321	90_17669;96_68973;97_89634;98_121932;99_188091
+DQ832007:1..1334	90_17669;96_68973;97_89634;98_121932;99_188813
+
+```
+
+16s gene( 所有genome 放在一起了)：/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_16s_new/bac_16s_clusterRes_rep_seq.fasta
+
+尝试使用mapseq
+
+```{bash}
+mapseq rawseqs.fa <customref.fasta> <customref.tax> [customref.tax2 ...] > rawseqs.fa.mseq
+```
+
+我们的目标应该是，行为样本，列为16Sid(或genome，OTU)的丰度表
+
+看起来16S输入Mapseq比对到他们数据库里的一个序列id，然后用samples-otus.97.mapped这个文件就可以得到我们要的表
+
+```{bash}
+$ cat test.mseq
+#query	dbhit	bitscore	identity	matches	mismatches	gaps	query_start	query_end	dbhit_start	dbhit_end	strand		NCBIv3.0-goldorgan2021v1:Kingdom	combined_cf	score_cf	Phylumcombined_cf	score_cf	Class	combined_cf	score_cf	Order	combined_cf	score_cf	Familycombined_cf	score_cf	Genus	combined_cf	score_cf	Species	combined_cf	score_cf		MAP_hOTUs3.0:OTU90%	combined_cf	score_cf	OTU96%	combined_cf	score_cf	OTU97%	combined_cf	score_cf	OTU98%	combined_cf	score_cf	OTU99%	combined_cf	score_cf
+16S_rRNA::NZ_JABUYY010000040.1:38-1566(+)	NZ_JQLV01000001:2500940..2502479	1476	0.982984	1502	26	0	0	1528	6	1534	+		Bacteria	1	1	Proteobacteria	0.84359735	1	Gammaproteobacteria	0.84359735	1	Oceanospirillales	0.84359735	1	Halomonadaceae	0.79383355	0.818731	Halovibrio	0.54983342	0.549833	Halovibrio variabilis0.33608001	0.33608		90_48	0.76614285	1	96_104	0.76614285	1	97_1197	0.76614285	0.768525	98_1433	0.48023418	0.480234	99_1813	0.48023418	0.480234
+
+$ cut -f1,42 test.mseq
+#query	OTU97%
+16S_rRNA::NZ_JABUYY010000040.1:38-1566(+)	97_1197
+
+#查找一个otu对应的所有sample的数量
+$ awk '/^>/ || /;97_1197\t/' ~/db/mapseq_db/samples-otus.97.mapped > test.otu_sample
+```
+
+```{bash}
+# /share/home/jianglab/shared/ouxinyi2liuzhen/bacteria24/genome_16s_pc
+# 我们这所有的结果
+cut -f1,42 ../genome_16s_new/rawseqs.fa.mseq > rawseqs_16s_otuid
+sed -i '1d' rawseqs_16s_otuid
+cut -f2 rawseqs_16s_otuid|sort|uniq > rawseqs_uniq_otuid 
+
+# 45421genomes(16S)，cluster后得到21842个16S，21822个uniq 16S去做mapseq，最后对应4160个OTU（97%）。
+bac2bac_genome_with_16s
+bac_16s_clusterRes_cluster.tsv
+rawseqs_16s_otuid
+
+sort -k2,2 bac2bac_genome_with_16s >bac2bac_genome_with_16s_sort
+sort -k1,1 bac_16s_clusterRes_cluster.tsv >bac_16s_clusterRes_cluster_sort
+join -1 2 -2 1 bac2bac_genome_with_16s_sort bac_16s_clusterRes_cluster_sort>genome_16s_uniq16s_map
+sort -k1,1 rawseqs_16s_otuid >rawseqs_16s_otuid_sort
+join -1 1 -2 1 genome_16s_uniq16s_map rawseqs_16s_otuid_sort|awk '{print $2"\t"$3"\t"$1"\t"$4}' > genome_16s_uniq16s_otuid_map
+
+```
+
+
+```{bash}
+python filter_large_file2.py rawseqs_uniq_otuid ~/db/mapseq_db/samples-otus.97.mapped uniq_otuid_samples
+python transform_to_table.py uniq_otuid_samples uniq_otuid_samples_df
+```
+
+
+```{r}
+library(readr)
+library(dplyr)
+bac2bac_genome_with_16s=read_delim("bac2bac_genome_with_16s",delim = "\t",col_names = c("genome_id","16S"))
+bac_16s_clusterRes_cluster=read_delim("bac_16s_clusterRes_cluster.tsv",delim = "\t",col_names = c("uniq_16S","16S"))
+rawseqs_16s_otuid=read_delim("rawseqs_16s_otuid",delim = "\t",col_names = c("uniq_16S","OTUid"))
+
+tmp=left_join(bac2bac_genome_with_16s,bac_16s_clusterRes_cluster)
+res=left_join(tmp,rawseqs_16s_otuid)
+write_delim(res,file = "genome_16s_uniq16s_otuid_map",delim = "\t")
+```
+
+```{r}
+# 读取文件
+bac_source_target_count <- read_delim("bac_source_target_count.txt", delim = "\t", col_names = F)
+colnames(bac_source_target_count) <- c("source_genome","target_genome","count")
+genome_16s_otuid_map <- read_delim("genome_16s_uniq16s_otuid_map", delim = "\t", col_names = T)
+#colnames(genome_16s_otuid_map) <- c("genome","16s","","otu")
+tmp=genome_16s_otuid_map[,c(1,4)]
+
+# 将 source_genome 与 genome 列进行关联，并添加对应的 16s 和 otu 列
+result <- bac_source_target_count %>%
+  inner_join(tmp, by = c("source_genome" = "genome_id"))%>%
+  inner_join(tmp, by = c("target_genome" = "genome_id"))
+
+result %>% rename(source_otu = `OTUid.x`,target_otu = `OTUid.y`)->result
+
+# 输出结果
+write_tsv(result, "joined_result.tsv")
+```
+
+```{r}
+#根据每一行的总数count,和大于0的数量exist筛选一下
+uniq_otuid_samples_df=readr::read_delim("uniq_otuid_samples_df",delim = "\t")
+uniq_otuid_samples_df=data.frame(uniq_otuid_samples_df,check.names = F)%>%tibble::column_to_rownames("...1")
+
+uniq_otuid_samples_df=read.table("uniq_otuid_samples_df")
+rowSums(uniq_otuid_samples_df)->count_v
+rowSums(uniq_otuid_samples_df>0)->exist_v
+# > summary(count_v)
+#     Min.  1st Qu.   Median     Mean  3rd Qu.     Max.
+#        1      307     1561    10599     5913 17385325
+# > summary(exist_v)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+#    1.00   19.00   45.00   65.54   86.00 1538.00
+uniq_otuid_samples_df[(count_v>10000)&(exist_v>50),]->res # 46966
+write.table(res, "uniq_otuid_samples_df_filter_10000_50",quote = F)
+
+uniq_otuid_samples_df[(count_v>10000)&(exist_v>100),]->res # 29929
+write.table(res, "uniq_otuid_samples_df_filter_10000_100",quote = F)
+
+uniq_otuid_samples_df[(count_v>10000)&(exist_v>500),]->res # 1325
+write.table(res, "uniq_otuid_samples_df_filter_10000_500",quote = F)
+```
+
+
+```{r}
+# 定义计算co-occurrence的函数
+calc_distance <- function(col1, col2) {
+  sum((col1 & col2)) / min(sum(col1), sum(col2))
+}
+
+# 定义函数计算表格中所有列两两之间的co-occurrence
+calc_all_distances <- function(test) {
+  # 获取列数
+  n <- ncol(test)
+  
+  # 初始化距离矩阵
+  distance_matrix <- matrix(0, n, n)
+  colnames(distance_matrix) <- colnames(test)
+  rownames(distance_matrix) <- colnames(test)
+  
+  # 获取所有列组合
+  combs <- combn(n, 2)
+  
+  # 使用 apply 函数计算所有列两两之间的距离
+  distances <- apply(combs, 2, function(idx) {
+    i <- idx[1]
+    j <- idx[2]
+    distance <- calc_distance(test[, i], test[, j])
+    distance_matrix[i, j] <<- distance
+    distance_matrix[j, i] <<- distance
+  })
+  
+  return(distance_matrix)
+}
+
+# 示例使用
+# 创建一个示例表格test
+set.seed(123)
+test <- as.data.frame(matrix(sample(0:1, 100, replace = TRUE), nrow = 10, ncol = 10))
+
+# 计算co-occurrence矩阵
+calc_all_distances(test)->a
+```
+
+```{r}
+res=read.table("uniq_otuid_samples_df_filter_10000_500")
+# 计算co-occurrence矩阵
+calc_all_distances(res)->co_occor
+colnames(co_occor)=rownames(co_occor)=gsub("X.*\\.","",colnames(co_occor))
+write.table(co_occor, "co_occor_10000_50",quote = F)
+reshape2::melt(co_occor,value.name = "Co-occurrence")->co_occor2
+write.table(co_occor2, "co_occor_10000_50_melt",quote = F)
+
+# > summary(co_occor2$`Co-occurrence`)
+#    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's
+#    0.00    0.00    0.01    0.04    0.03    1.00  230356
+
+```
+
+
+```{r}
+readRDS("4.HGT/target_conserved_region.rds")->target_conserved_region
+names(target_conserved_region)
+
+i="Escherichia_coli"
+target_conserved_region[[i]]%>%as.data.frame()->tmp
+# readRDS("4.HGT/Acinetobacter_baumannii_target.rds")->tmp
+gghist(tmp$block_length)
+
+filter(tmp,block_length>500)->tmp2
+arrange(tmp2,conservation)->tmp2
+tmp2$pos=seq_len(nrow(tmp2))
+tmp2$conservation=tmp2$conservation/60
+ggplot(tmp2)+
+  geom_segment(aes(x=pos,y=-0.05*max(tmp2$target_count),xend=pos,yend=-0.05,color=conservation))+
+  scale_color_gradientn(colors = get_cols(pal = "bluered")[2:10])+
+  geom_segment(aes(x=pos,y=0,xend=pos,yend=target_count),data = filter(tmp2,target_count>0))+
+  labs(y="Target count",title = i)+mytheme+
+  theme(axis.line.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+plist=list()
+for (i in names(target_conserved_region)) {
+  target_conserved_region[[i]]%>%as.data.frame()->tmp
+  # readRDS("4.HGT/Acinetobacter_baumannii_target.rds")->tmp
+  gghist(tmp$block_length)
+  
+  filter(tmp,block_length>500)->tmp2
+  arrange(tmp2,conservation)->tmp2
+  tmp2$pos=seq_len(nrow(tmp2))
+  tmp2$conservation=tmp2$conservation/60
+  plist[[i]]=ggplot(tmp2)+
+    geom_segment(aes(x=pos,y=-0.05*max(target_count),xend=pos,yend=-0.05,color=conservation))+
+    scale_color_gradientn(colors = get_cols(pal = "bluered")[2:10],values = c(0,1))+
+    geom_segment(aes(x=pos,y=0,xend=pos,yend=target_count),data = filter(tmp2,target_count>0))+
+    labs(y="Target count",title = i)+mytheme+
+    theme(axis.line.x = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+  if(i=="Acinetobacter_baumannii") plist[[i]]= plist[[i]]+theme(legend.position = c(0.2,0.7))
+  else plist[[i]]= plist[[i]]+theme(legend.position = "")
+}
+cp=cowplot::plot_grid(plotlist = plist[-13])
+ggsave("4.HGT/target_conserved_region.pdf",plot = cp,width = 20,height = 15)
+
+
+lapply(names(target_conserved_region), \(i){
+  data.frame(sp=i,target_conserved_region[[i]]%>%filter(block_length>500))})%>%
+  do.call(rbind,.)->tmp
+tmp$conservation=tmp$conservation/60
+arrange(tmp,conservation)->tmp
+tmp$pos=seq_len(nrow(tmp))
+ggplot(tmp)+
+  geom_segment(aes(x=pos,y=-0.05*max(target_count),xend=pos,yend=-0.05,color=conservation))+
+  scale_color_gradientn(colors = get_cols(pal = "bluered")[2:10])+
+  geom_segment(aes(x=pos,y=0,xend=pos,yend=target_count),data = filter(tmp,target_count>0),size=0.2)+
+  labs(y="Target count",title = "Total")+mytheme+
+  theme(axis.line.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())+
+  theme(legend.position = c(0.2,0.7))
+ggsave("4.HGT/target_conserved_region_total.pdf",width = 6,height = 4)
+```
+
+
+
+# HGT lineplot
+
+```{r}
+readRDS("4.HGT/model_hist/hist_time_drift.rds")->hist_time_drift
+
+ggplot(filter(hist_time_drift,counts>0))+
+  #geom_tile(aes(x=generation,y=mids,fill=density))+
+  geom_point(aes(x=generation,y=mids,col=density))+
+  scale_fill_gradient2(low = add_alpha("red3",0.3), high = "red3")+
+  scale_color_gradient2(low = add_alpha("red3",0.3), high = "red3")
+
+```
+
+
+```{r}
+diff_nhr_level=read.table("4.HGT/diff_nhr_level.tsv",header = T)
+diff_nhr_level=arrange(diff_nhr_level,Group,generation)
+crispr_region=data.frame(generation=seq(1e4,1e6,1e4),
+                         ymin=filter(diff_nhr_level,Group=="MDH+25%ANG")%>%pull(mean),
+                         ymax=filter(diff_nhr_level,Group=="MDH+100%ANG")%>%pull(mean))
+
+ggplot(filter(diff_nhr_level,Group!="M"))+
+  geom_ribbon(data = crispr_region,aes(x=generation,ymin=ymin,ymax=ymax),
+              fill="pink",alpha=0.5)+
+  geom_line(aes(x=generation,y=mean,col=Group),linewidth=1)+
+  geom_pointrange(aes(x=generation,y=mean,
+                       xmin=generation,xmax=generation,
+                        ymin=mean-se,ymax=mean+se,col=Group),size=0.1)
+
+ggplot(filter(diff_nhr_level,Group!="M"))+
+  geom_ribbon(data = crispr_region,aes(x=generation,ymin=ymin,ymax=ymax),
+              fill=linearGradient(scales::viridis_pal()(10), group = FALSE),alpha=0.5)+
+  geom_line(aes(x=generation,y=mean,col=Group),linewidth=1)+
+  geom_pointrange(aes(x=generation,y=mean,
+                       xmin=generation,xmax=generation,
+                        ymin=mean-se,ymax=mean+se,col=Group),size=0.1)
+
+```
+
+

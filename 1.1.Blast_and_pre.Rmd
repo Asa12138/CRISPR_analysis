@@ -1,0 +1,1708 @@
+---
+title: "1.1.Blast_and_pre"
+author:
+  - Peng Chen
+date: Thu Aug 17 00:25:53 2023
+bibliography: My_Library.bib
+link-citations: yes
+csl: ./my.csl
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+editor_options:
+  markdown:
+    wrap: 150
+---
+
+```{r setup, include = FALSE}
+path <- "/Users/asa/Documents/R/CRISPR_analysis/analysis"
+knitr::opts_chunk$set(eval=TRUE, #run code in chunks (default = TRUE)
+                       highlight = TRUE, #highlight display
+                       echo = TRUE, #whether to include the source code in the output
+                       tidy=TRUE, #whether to organize the code
+                       error = TRUE, #Whether to include error information in the output
+                       warning = FALSE, #Whether to include warnings in the output (default = TRUE)
+                       message = FALSE, #whether to include reference information in the output
+                       cache=TRUE, #whether to cache
+                       collapse = FALSE # output in one piece
+                       )
+knitr::opts_knit$set(root.dir = path)
+```
+Install and import all dependent packages, data import:
+```{r import,echo=TRUE, message=FALSE, warning=FALSE, results="hide"}
+source("./R_config.R")
+output="1.1.Blast_and_pre/"
+```
+
+# Blast
+
+把所有的spacer经过处理后blast多个数据库，经过一系列处理整理成一个全面的表格（甚至可以做成数据库，非常多信息）。
+
+## filter arrays
+
+cd-hit identity cutoff = 93%
+
+Bacterial spacers are mostly 32bp long, and 93% identity cutoff contains 2.23 different bases; While  Archaeal spacers are mostly 36bp long, and 93% identity cutoff contains 2.52 different bases.
+
+一条array中的spacer进行cd-hit聚类（93%identity），超过93%的spacer认为是同一个
+
+聚类后的array的spacer数量/聚类前数量>=0.9的array保留，其他的认为不是真实array（记录了crispr_id）并删除（@mitrofanovCRISPRidentifyIdentificationCRISPR2021），思路跟crispercasfinder的level4筛选类似。
+
+我们应该把这些该去掉的crispr在CCF_res中也去掉（待完成）。
+
+```{bash}
+#Split into one fasta file per array
+#total spacers:
+cd /data/home/jianglab/share/arc_ccfinder/
+
+mkdir ./array
+cd array
+awk -F "[>@]" '/^>/ {F = $2"@"$3"@"$4".fasta"} {print > F}' ../arc_level4_spacer.fa
+
+ls -1 -f|grep fasta > ../arraylist
+cd ../
+wc -l arraylist 
+#8819 arraylist
+mkdir array_cdhit
+
+#!/bin/bash
+#SBATCH --job-name=arc_pap
+#SBATCH --output=/share/home/jianglab/liuzhen/hmp1-2/slurm.out/hmp_arc_plas/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/liuzhen/hmp1-2/slurm.out/hmp_arc_plas/%x_%A_%a.err
+#SBATCH --partition=cpu
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+#SBATCH --array=1-10
+
+START=$SLURM_ARRAY_TASK_ID
+NUMLINES=882
+STOP=$((SLURM_ARRAY_TASK_ID*NUMLINES))
+START="$(($STOP - $(($NUMLINES - 1))))"
+echo "START=$START"
+echo "STOP=$STOP"
+for (( N = $START; N <= $STOP; N++ ))
+do
+	sample=$(head -n "$N" arraylist| tail -n 1)
+	echo $sample
+	inDir=/data/home/jianglab/share/arc_ccfinder/array
+	outDir=/data/home/jianglab/share/arc_ccfinder/array_cdhit
+	cd-hit -i $inDir/$sample -c 0.93 -o $outDir/$sample'_cluster.fa' 
+done
+
+sac 1363138
+```
+
+clusters calculation
+```{bash}
+cd /data/home/jianglab/share/arc_ccfinder/array_cdhit
+ls -1 -f|grep -v 'clstr' > ../arc_array
+cd ../
+mkdir stats_arc_array
+#archaeal arrays
+#indir=/data/home/jianglab/share/arc_ccfinder/array_cdhit
+
+#calculate the no.spacers per array after cd-hit clustering 
+
+#!/bin/bash
+#SBATCH --job-name=arc_pap
+#SBATCH --output=/share/home/jianglab/liuzhen/hmp1-2/slurm.out/hmp_arc_plas/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/liuzhen/hmp1-2/slurm.out/hmp_arc_plas/%x_%A_%a.err
+#SBATCH --partition=cpu
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+cat arc_array|while read file;do
+	echo `cat array_cdhit/$file|grep '>'|wc -l` >> stats_arc_array/$file
+done
+
+sac 1363149
+```
+
+spacer counts per array before clustering
+```{bash}
+#folder before clustering
+cd /data/home/jianglab/share/arc_ccfinder/array
+ls -1 -f |grep fasta > ../arc_array_total
+cd ../
+mkdir stats_arc_array_total
+#indir=/data/home/jianglab/share/arc_ccfinder/output/array
+
+#!/bin/bash
+#SBATCH --job-name=hmp_pap
+#SBATCH --output=/share/home/jianglab/liuzhen/hmp1-2/slurm.out/hmp_arc_plas/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/liuzhen/hmp1-2/slurm.out/hmp_arc_plas/%x_%A_%a.err
+#SBATCH --partition=gpu
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+cat arc_array_total|while read file;do
+#array is the folder containing arrays before cd-hit clustering
+	echo `cat array/$file|grep '>'|wc -l` >> stats_arc_array_total/$file
+done
+
+sac 1363150
+```
+
+combine the results before and after clustering
+```{bash}
+cd /data/home/jianglab/share/arc_ccfinder/
+#rename the suffix of files after clustering
+cd stats_arc_array
+for i in *;do
+rename .fasta_cluster.fa .fasta $i
+done
+
+cd ../
+mkdir info_arc_array
+cd stats_arc_array_total
+for i in *;do  paste $i ../stats_arc_array/$i > ../info_arc_array/$i; done
+cd ../
+mkdir info_arc_array2
+cd info_arc_array
+for i in *;do awk -v FS="\t" -v OFS="\t" '{print $0,$2/$1}' $i > ../info_arc_array2/$i; done
+cd ../
+cd info_arc_array2
+ls -1 -f|grep fasta > ../arc_fastalist
+cd ../
+#merge
+cat arc_fastalist|while read line;do
+	cat info_arc_array2/$line >> arc_array_counts
+done
+paste arc_fastalist arc_array_counts > arc_array_counts2
+sed -i 's/.fasta//g' arc_array_counts2
+
+#head arc_array_counts2
+GCF_024494565.1_ASM2449456v1_genomic.fna@NZ_JANHDN010000008.1@CRISPR:1	1	1	1
+GCA_027055175.1_ASM2705517v1_genomic.fna@JALUNO010000103.1@CRISPR:1	3	3	1
+GCA_002789105.1_ASM278910v1_genomic.fna@PFSO01000098.1@CRISPR:1	1	1	1
+GCA_004525645.1_ASM452564v1_genomic.fna@SPCD01000392.1@CRISPR:1	3	3	1
+GCA_947170395.1_SRR8387719_bin.80_metaWRAP_v1.3_MAG_genomic.fna@CAMVTE010000047.1@CRISPR:1	1	1	1
+
+
+#pick out arrays with spacer uniqueness >= 0.9 ：
+awk -v FS="\t" -v OFS="\t" '{if($4>=0.9) print $0}' arc_array_counts2 > arc_array_counts3
+
+#使用seqkit中的seq命令，并通过指定-w参数来设置每行的宽度，以达到将序列全部放在一行的效果。
+seqkit seq -w 0 arc_level4_spacer.fa > arc_level4_spacer_one_line.fa
+
+#get array_uniq.fa that meets the requirements（spacer uniqueness >= 0.9）
+#get array_uniq.fa according to the table arc_array_counts3
+#mapping arc_array_counts3 with arc_level4_spacer_one_line.fa
+
+grep '>' array_uniq.fa|wc -l
+#234174 spacers
+```
+
+spacer uniqueness (per array) distribution
+
+```{bash}
+awk -v FS="\t" -v OFS="," '{print "Archaea",$4 }' arc_array_counts3 > arc_uniqueness_count.csv
+#scp the table "arc_uniqueness_count" to local workstation
+cd ~/Desktop/chart/uniqueness_stats
+scp liuzhen@10.73.29.10:/data/home/jianglab/share/arc_ccfinder/arc_uniqueness_count.csv 
+```
+
+## unique spacers
+
+细菌的spacer大概有25,000,000个，但实际上有大量一模一样的spacer（可能来自同一species的多个genome，虽然并不是所有的spacer history都一样），所以在统计信息或blast时可以先聚类（完全一致的为一类，保留对应关系，方便将聚类spacer拓展到所有的）
+
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=Bac_pap
+#SBATCH --output=/data/home/jianglab/share/bac_ccfinder_merge/slurm.out/%x_%A_%a.out
+#SBATCH --error=/data/home/jianglab/share/bac_ccfinder_merge/slurm.out/%x_%A_%a.err
+#SBATCH --partition=gpushort
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+
+# 输入文件名
+input_file="array_uniq.fa"
+# 输出文件名
+output_file="duplicates.txt"
+
+# 使用awk进行重复序列的查找和输出
+awk 'BEGIN {RS=">"; FS="\n"} 
+    NR>1 {seq=$2; 
+    if (seq in sequences) {sequences[seq]=sequences[seq] "," $1} 
+    else {sequences[seq]=$1}} 
+    END {for (seq in sequences) {print sequences[seq]}}' "$input_file" > tmp
+
+cat tmp|cut -f1 -d ','>tmp1
+paste tmp1 tmp>"$output_file"
+rm tmp tmp1
+
+#duplicates.txt有两列，第一列作为代表，第二列是重复情况
+#挑出不重复的部分
+
+awk '{print $1}' "$output_file" | seqkit grep -f - "$input_file" > arc23_spacer_uniq.fa
+
+wc -l arc23_spacer_uniq.fa
+363631 arc23_spacer_uniq.fa
+wc -l array_uniq.fa 
+468348 array_uniq.fa
+
+363631/468348 ~ 77.6% uniqueness
+```
+
+## Blastn to diverse database
+
+分割要跑的spacer的fasta文件
+```{bash}
+#split array_uniq.fa into many small files
+cd /data/home/jianglab/share/arc_ccfinder/
+mkdir fasta_split
+cd fasta_split
+split -l 500 ../array_uniq.fa -d -a 3 uniq_
+for i in *;do
+mv $i $i.fa
+done
+ls * > ../arclist
+cd ../
+```
+
+```{bash}
+#blastn to bigger database
+mkdir blastn_output_big
+cd /data/home/jianglab/share/arc_ccfinder/blastn_output_big
+mkdir bac fungi archa ice virus protozoa plasdb arch_plasdb
+
+#937 files
+micromamba activate blast_env
+
+#!/bin/bash
+#SBATCH --job-name=arc_bl
+#SBATCH --output=/share/home/jianglab/liuzhen/slurm.out/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/liuzhen/slurm.out/%x_%A_%a.err
+#SBATCH --partition=cpu
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=12
+#SBATCH --mem-per-cpu=100m
+#SBATCH --array=1-937%128
+
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+sample=$(head -n $SLURM_ARRAY_TASK_ID arclist | tail -1)
+echo handling: $sample
+
+bac23=/data/home/jianglab/share/blastdb_new/bacteria/lib/bacteria_23
+arc23=/data/home/jianglab/share/blastdb_new/arc/lib/archaea_23
+fungi23=/data/home/jianglab/share/blastdb_new/fungi/lib/fungi_23
+proto23=/data/home/jianglab/share/blastdb_new/protozoa/lib/protozoa_23
+img=/data/home/jianglab/share/blastdb_new/IMG_vr/lib/imgvr_7_1
+ice=/share/home/jianglab/shared/blastdb/ice_lib/ice_nucleotide
+PLASDB=/share/home/jianglab/shared/plasmids/new/plsdb.fna
+archaeal_plasmid=/share/home/jianglab/shared/plasmids/archa_plasdb/lib/arch_plasdb
+
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $bac23 -out blastn_output_big/bac/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "1 done"
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $arc23 -out blastn_output_big/archa/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "2 done"
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $fungi23 -out blastn_output_big/fungi/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "3 done"
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $proto23 -out blastn_output_big/protozoa/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "4 done"
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $img -out blastn_output_big/virus/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "5 done"
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $ice -out blastn_output_big/ice/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "6 done"
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $PLASDB -out blastn_output_big/plasdb/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "7 done"
+blastn -task blastn-short -word_size 11 -query fasta_split/$sample -db $archaeal_plasmid -out blastn_output_big/arch_plasdb/$sample.out -qcov_hsp_perc 95 -perc_identity 95 -max_hsps 3 -num_threads 12 -outfmt 6
+echo "all done"
+
+#sac 1363640_[1-97]
+#sac 1364309_[98-937]
+
+#-word_size 11 
+#2.5h-7h 不等
+#3d
+```
+
+## source info
+
+提取信息genome_CRISPR_spacer
+
+spacerid->genomeid->找到genome的信息
+
+```{bash}
+整理
+cd /data/home/jianglab/share/arc_ccfinder
+#arc_level4_spacer_one_line.fa -> genome_CRISPR_spacer_query
+grep '>' arc_level4_spacer_one_line.fa > spacerid_level4
+sed -i 's/>//g' spacerid_level4
+awk -v FS="@" -v OFS="\t" '{print $1,$1"@"$2"@"$3"@"$4,$0,$2}' spacerid_level4 > genome_CRISPR_spacer_query
+
+
+```
+
+genome_spacer_taxid
+
+利用字典/data/home/jianglab/share/seqid2taxid_23/dict_blastndb_23_seqid_taxid.pickle (python)，根据 AE017199.1(seqid)找到taxid.
+
+```{bash}
+cd /data/home/jianglab/share/seqid2taxid_23
+vi look.py
+
+# -*- coding: utf-8 -*-
+import pickle
+with open('dict_blastndb_23_seqid_taxid.pickle', 'rb') as f: 
+    dict = pickle.load(f) 
+print("dic loaded")
+FILE = open("/data/home/jianglab/share/arc_ccfinder/genome_CRISPR_spacer_query",'r')
+#283741
+OUTPUT = open("./output/arc23_taxid",'w')
+#166986
+F=FILE.readlines()
+#遍历文本文件的每一行，strip可以移除字符串头尾指定的字符（默认为空格或换行符）或字符序列
+for line in F:
+    line = line.strip()
+    id = line.split('\t')[-1] #文件是以\t分列的.最后一列即为-1
+    #print matched data items and filename 
+    if id in dict.keys():
+     print(line,dict[id],sep="\t",file=OUTPUT) 
+    else:
+        continue
+# 关闭FILE
+FILE.close()
+OUTPUT.close()
+
+vi look2.sh
+#!/bin/bash
+#SBATCH --job-name=arc_sbid
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=100g
+python3 look.py
+
+sac 1372932
+#5min
+
+cd /data/home/jianglab/share/seqid2taxid_23/output/
+arc23_taxid
+
+user_genome	CRISPR	spacer	seqid	taxid
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6764_37_3	LGEX01000085.1	2234
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6831_38_4	LGEX01000085.1	2234
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6899_37_5	LGEX01000085.1	2234
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6966_38_6	LGEX01000085.1	2234
+
+cut -f1 arc23_taxid|sort|uniq|wc -l
+3136
+
+```
+
+taxid->lineage
+
+```{bash}
+cat arc23_taxid|cut -f5|taxonkit lineage|taxonkit reformat -f "{k};{p};{c};{o};{f};{g};{s}" -F -P |cut -f3 > lineage
+#taxonkit -F 补齐，-P add-prefix：给每个分类学水平添加前缀，比如s__species。
+paste arc23_taxid lineage > arc_taxid_lineage
+
+#user_genome	CRISPR	spacer	seqid	taxid	lineage
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6627_38_1	LGEX01000085.1	2234	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6695_39_2	LGEX01000085.1	2234	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6764_37_3	LGEX01000085.1	2234	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus
+```
+
+调整格式为 source_genome_id	CRISPR_id	spacer_id   source_lineage	source_taxid
+```{bash}
+awk -v FS="\t" -v OFS="\t" '{print $1,$2,$3,$6,$5}' arc_taxid_lineage > arc23_spacer_lineage_taxid
+
+arc23_spacer_lineage_taxid
+#user_genome	CRISPR	spacer	NCBI_taxonomy(lineage)	taxid
+
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6966_38_6	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_7034_37_7	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_7101_38_8	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_7169_41_9	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_7240_36_10	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+```
+
+## blast_res info
+
+### combine diverse db results
+
+/data/home/jianglab/share/arc_ccfinder/blastn_output_big/all_sorted.fa.out
+
+blastn数据库用的是最新的版本
+
+每一行记录加上该记录的数据库的名字
+```{bash}
+cd blastn_output_small
+find -maxdepth 1 -type d > list_dir
+sed -i '1d' list_dir
+echo '.' >> list_dir
+touch all.fa.out
+
+for i in $(cat list_dir):
+do
+	cd $i
+	cat * > all_in_this_dir.fa.out
+	wc -l all_in_this_dir.fa.out
+	cd ..
+done
+
+cd blastn_output_small
+rm all_in_this_dir.fa.out
+
+#手动到每一个文件夹里
+cd ice
+awk '{print $0 "\t" "ICE"}' all_in_this_dir.fa.out > all_in_dir.fa.out
+cd ..
+cd arch_plasdb
+awk '{print $0 "\t" "Archaea_plasmid"}' all_in_this_dir.fa.out > all_in_dir.fa.out
+cd ../
+cd plasdb
+awk '{print $0 "\t" "Bacteria_plasmid"}' all_in_this_dir.fa.out > all_in_dir.fa.out
+cd ../
+
+for i in $(cat list_dir):
+do
+	cd $i
+	cat all_in_dir.fa.out >> ../all.fa.out
+	wc -l all_in_dir.fa.out
+	cd ..
+done
+
+#两个数字相同即可
+```
+
+结果排序按照'basename', 'CRISPR', 'spacer', 'bitscore', 'pident',便于后续筛选
+
+```{python}
+#!/usr/bin/env python3
+import pandas as pd 
+import os
+
+file = r'all.fa.out'
+df = pd.read_table(file, sep='\t', engine="python", header=None)
+df.columns = ['qseqid', 'sseqid', 'pident', 'length', 'mismath', 'gapopen', 'qstart', 'qend', 'sstart', 'send', 'evalue', 'bitscore', 'database']
+
+df['basename'] = df['qseqid'].apply(lambda x: '@'.join(x.split('@')[:2]))
+df['CRISPR'] = df['qseqid'].apply(lambda x: x.split('@')[2].split(':')[1])
+df['spacer'] = df['qseqid'].apply(lambda x: x.split('@')[4].split('_')[3])
+
+df = df.astype({'CRISPR': 'int', 'spacer': 'int'})
+
+df = df.sort_values(by=['basename', 'CRISPR', 'spacer', 'bitscore', 'pident'], ascending=[True, True, True, False, False])
+
+df = df.drop(['CRISPR','spacer','basename'], axis=1)
+
+df.to_csv(r'all_sorted.fa.out', sep='\t', index=False)
+```
+
+### merge: genome_spacer_taxid 和 blastn results
+
+blastn结果：/data/home/jianglab/share/arc_ccfinder/blastn_output_big/all_sorted.fa.out
+
+key之前的列会消失。把 genome_spacer_taxid.csv的spacer列放到第一列！
+
+```{bash}
+cd /data/home/jianglab/share/seqid2taxid_23/output
+head arc23_spacer_lineage_taxid
+#user_genome	CRISPR	spacer	NCBI_taxonomy(lineage)	taxid
+
+awk -v FS="\t" -v OFS="\t" '{print $3,$1,$2,"null",$4,$5}' arc23_spacer_lineage_taxid > spacer_null_taxid.csv
+
+#add header:
+#spacer	user_genome	CRISPR	null	NCBI_taxonomy	taxid
+
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6627_38_1	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	null	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6695_39_2	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	null	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6764_37_3	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	null	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6831_38_4	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	null	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234
+
+
+cp /data/home/jianglab/share/arc_ccfinder/blastn_output_big/all_sorted.fa.out ./
+
+#vi all_sorted.fa.out  改header第一个为 spacer
+spacer	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database
+
+```
+
+```{python}
+import os
+import pandas as pd
+df1_csv = pd.read_csv("spacer_null_taxid.csv", index_col=0,sep='\t',engine='python')
+df2_csv = pd.read_csv("all_sorted.fa.out", index_col=0,sep='\t',engine='python')
+df1_csv
+df2_csv
+df1_csv.to_csv("df1_csv")
+df2_csv.to_csv("df2_csv")
+left=df1_csv.merge(df2_csv,how='left',on='spacer')
+left.to_csv("genome_taxid_blastn.csv",sep='\t')
+exit()
+
+```
+
+```{bash}
+#genome_taxid_blastn.csv
+#spacer	user_genome	CRISPR	null	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database
+#GCA_000008085.1_ASM808v1_genomic.fna@AE017199.1@CRISPR:1@13653-14585@spacer_13681_38_1	GCA_000008085.1_ASM808v1_genomic.fna	GCA_000008085.1_ASM808v1_genomic.fna@AE017199.1@CRISPR:1		k__Archaea;p__Nanoarchaeota;c__Candidatus Nanoarchaeia;o__Nanoarchaeales;f__Nanoarchaeaceae;g__Nanoarchaeum;s__Nanoarchaeum equitans	228908	AE017199.1	100.0	38.0	0.0	0.0	1.0	38.0	13681.0	13718.0	5.75e-12	75.8	bac
+
+spacer	user_genome	CRISPR	null	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6627_38_1	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440		k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234	LGEQ01000066.1	100.0	38.0	0.0	0.0	1.0	38.0	873.0	836.0	5.75e-12	75.8	Archaea
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6627_38_1	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440		k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234	NZ_CP006577.1	100.0	38.0	0.0	0.0	1.0	38.0	372965.0	373002.0	5.75e-12	75.8	Archaea
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6627_38_1	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440		k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234	NC_000917.1	100.0	38.0	0.0	0.0	1.0	38.0	398399.0	398436.0	5.75e-12	75.8	Archaea
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6627_38_1	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440		k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234	LGEX01000085.1	100.0	38.0	0.0	0.0	1.0	38.0	6627.0	6664.0	5.75e-12	75.8	Archaea
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_6695_39_2	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440		k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	2234	NZ_CP006577.1	100.0	39.0	0.0	0.0	1.0	39.0	373033.0	373071.0	1.54e-12	77.8	Archaea
+```
+
+```{bash}
+cut -f18 genome_taxid_blastn.csv |sort|uniq -c|sort -nr
+
+1246953 Archaea
+  31496 Virus
+   8584 Bacteria
+   4848 
+   1921 Protozoa
+   1302 Fungi
+    132 Archaea_plasmid
+     32 Bacteria_plasmid
+
+awk -F'\t' '$18 == "" {print}' genome_taxid_blastn.csv|less -S
+#空的是没有blastn results的
+```
+
+### delete no hit
+有spacer的 genome不是都有 blastn结果
+```{bash}
+cd /data/home/jianglab/share/seqid2taxid_23/output
+#database分别替换成 Fungi, Viruses, ICE, Protozoa,Bacteria_plasmid,Archaea,Bacteria,Fungi,Bacteria,Archaea_plasmid
+awk -v FS="\t" -v OFS="\t" '{if ($NF=="Virus") $NF="Viruses"}1' genome_taxid_blastn.csv > mid
+
+(base) [ouxinyi@login01 gtdb_skin]$ cut -f18 mid|sort|uniq -c|sort -nr
+ 1246953 Archaea
+  31496 Viruses
+   8584 Bacteria
+   4848 
+   1921 Protozoa
+   1302 Fungi
+    132 Archaea_plasmid
+     32 Bacteria_plasmid
+      1 database
+
+mid:
+spacer	user_genome	CRISPR	null	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database
+GCA_000008085.1_ASM808v1_genomic.fna@AE017199.1@CRISPR:1@13653-14585@spacer_13681_38_1	GCA_000008085.1_ASM808v1_genomic.fna	GCA_000008085.1_ASM808v1_genomic.fna@AE017199.1@CRISPR:1		k__Archaea;p__Nanoarchaeota;c__Candidatus Nanoarchaeia;o__Nanoarchaeales;f__Nanoarchaeaceae;g__Nanoarchaeum;s__Nanoarchaeum equitans	228908	AE017199.1	100.0	38.0	0.0	0.0	1.0	38.0	13681.0	13718.0	5.75e-12	75.8	Bacteria
+mv mid genome_taxid_blastn_corrected.csv
+rm genome_taxid_blastn.csv
+
+wc -l genome_taxid_blastn_corrected.csv
+1295269
+
+#若 spacer没有对应的 blastn结果，则整行删掉
+cut -f18 genome_taxid_blastn_corrected.csv |less 
+awk -v FS="\t" -v OFS="\t" '{if ($18!="") print $0}' genome_taxid_blastn_corrected.csv > genome_taxid_blastn_mid1.csv
+```
+
+
+### target priority：
+
+考虑target database的priority：
+
+同一个 spacer对应了多个 subject sequences，其对应了不同bitscore
+
+> 将相同的spacer先放到一个中间文件中，进行 bitscore的筛选，然后筛选数据库，满足条件的行追加写到结果文件中。
+
+1.只需要 >= top bitscore * 0.9 的行，bitscore低于这个值的删掉；
+
+database优先级：Viruses > plasmids = ICE：
+
+2.同一个 spacer对应的所有行，如果有 Viruses的话，只要 Viruses数据库的。（CRSIPR-Cas系统最重要的功能）
+
+3.如果有 plasmids/ICE的话，只要 plasmids和 ICE数据库的。(若同时有 Bacteria_plasmid、Archaea_plasmid，则都保留）
+```{bash}
+#重新开始时，要先删掉现有的LCA_mid.csv
+#rm LCA_mid.csv
+
+vi select_row.py
+
+cd /data/home/jianglab/share/seqid2taxid_23/output
+
+mv bac_genome_taxid_blastn.csv /share/home/jianglab/shared/ouxinyi2liuzhen
+cd /share/home/jianglab/shared/ouxinyi2liuzhen
+
+head bac_genome_taxid_blastn.csv
+
+spacer	user_genome	CRISPR	null	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database
+GCA_000007325.1_ASM732v1_genomic.fna@AE009951.2@CRISPR:5@1836377-1837401@spacer_1836407_35_1	GCA_000007325.1_ASM732v1_genomic.fna	GCA_000007325.1_ASM732v1_genomic.fna@AE009951.2@CRISPR:5@1836377-1837401	null	k__Bacteria;p__Fusobacteriota;c__Fusobacteriia;o__Fusobacteriales;f__Fusobacteriaceae;g__Fusobacterium;s__Fusobacterium nucleatum	190304	IMGVR_UViG_3300007206_000202|3300007206|Ga0103276_1000031|11160-59526	100	35	0	0	1	35	41417	41383	1.14e-09	69.9	Viruses
+GCA_000007325.1_ASM732v1_genomic.fna@AE009951.2@CRISPR:5@1836377-1837401@spacer_1836407_35_1	GCA_000007325.1_ASM732v1_genomic.fna	GCA_000007325.1_ASM732v1_genomic.fna@AE009951.2@CRISPR:5@1836377-1837401	null	k__Bacteria;p__Fusobacteriota;c__Fusobacteriia;o__Fusobacteriales;f__Fusobacteriaceae;g__Fusobacterium;s__Fusobacterium nucleatum	190304	IMGVR_UViG_2639763071_000001|2639763071|2639827261|2069818-2115215	100	35	0	0	1	35	44710	44676	1.14e-09	69.9	Viruses
+GCA_000007325.1_ASM732v1_genomic.fna@AE009951.2@CRISPR:5@1836377-1837401@spacer_1836407_35_1	GCA_000007325.1_ASM732v1_genomic.fna	GCA_000007325.1_ASM732v1_genomic.fna@AE009951.2@CRISPR:5@1836377-1837401	null	k__Bacteria;p__Fusobacteriota;c__Fusobacteriia;o__Fusobacteriales;f__Fusobacteriaceae;g__Fusobacterium;s__Fusobacterium nucleatum	190304	IMGVR_UViG_2648501184_000002|2648501184|2648508380|1091208-1132540	100	35	0	0	1	35	99	133	1.14e-09	69.9	Viruses
+```
+
+
+version1，做archaea的
+```{python}
+#脚本1.(pandas 2.0以上不支持)
+
+#!/usr/bin/env python3
+import os
+import pandas as pd
+df1 = pd.read_csv("genome_taxid_blastn_mid1.csv",sep='\t',engine='python')
+group_obj = df1.groupby(by='spacer')
+out=df1[(df1["database"]=='123456')]
+#创建一个空 dataframe，格式和其他的相同
+for i in list(group_obj):
+    smsp=i[1]
+    #smsp=list(group_obj)[266][1]
+    #smsp 存放某一 spacer 对应的所有行。
+    b09 = smsp[smsp["bitscore"]>=float(smsp.max(axis=0)['bitscore'])*0.9]
+    #b09 存放所有满足 bitscore>=0.9max(bitscore)的行
+    if 'Viruses' in str(b09['database']):
+        lst = b09[b09["database"]=='Viruses']
+        #vrs 存放 virus
+    elif 'plasmid' in str(b09['database']) or 'ICE' in str(b09['database']):
+        lst = b09[(b09["database"]=='Bacteria_plasmid' )|( b09["database"]=='Archaea_plasmid' )| (b09["database"]=='ICE')]
+    else:
+        lst=b09
+    out=out.append(lst, ignore_index = True)
+    #df.append()函数将现有 DataFrame 的几行附加到另一个 DataFrame 的末尾：
+    #append rows of df2 to end of existing DataFrame
+    #df = df.append(df2, ignore_index = True)
+out.to_csv('select_row.csv',sep='\t')
+#df1 = pd.read_csv("select_row.csv",index_col=0,engine='python')
+#df1
+#df1.to_csv('select_row2.csv',sep='\t')
+
+
+#脚本2（As of pandas 2.0, append was removed，use concat instead (for most applications)
+
+
+import os
+import pandas as pd
+
+df1 = pd.read_csv("genome_taxid_blastn_mid1.csv", sep='\t', engine='python')
+group_obj = df1.groupby(by='spacer')
+out = df1[df1["database"] == '123456']
+
+# 创建一个空 DataFrame，格式和其他的相同
+for i in list(group_obj):
+    smsp = i[1]
+    b09 = smsp[smsp["bitscore"] >= float(smsp.max(axis=0)['bitscore']) * 0.9]
+  
+    if 'Viruses' in str(b09['database']):
+        lst = b09[b09["database"] == 'Viruses']
+    elif 'plasmid' in str(b09['database']) or 'ICE' in str(b09['database']):
+        lst = b09[(b09["database"] == 'Bacteria_plasmid') | (b09["database"] == 'Archaea_plasmid') | (b09["database"] == 'ICE')]
+    else:
+        lst = b09
+  
+    out = pd.concat([out, lst], ignore_index=True)
+
+out.to_csv('select_row.csv', sep='\t')
+
+
+python3 sort.py
+
+#耗时久，1h
+```
+
+version2，做bacteria的，因为太多了，而且每个spacer的筛选是独立的，所有可以考虑分开进行再合并结果
+
+input太大，split成多个小文件，每个 46652 行。
+```{python}
+from collections import defaultdict
+
+def main():
+    # 读取原始文件
+    input_filename = 'bac_genome_taxid_blastn.csv'
+    with open(input_filename, 'r') as input_file:
+        lines = input_file.readlines()
+
+    # 分割文件并将数据写入
+    output_folder = 'split_files/'
+    output_file_number = 1  # 用于生成输出文件的数字结尾
+  
+    spacerid_set = set()  # 用于记录当前文件的spacerid
+    spacerid_data = defaultdict(list)  # 记录每个spacerid对应的数据
+  
+    for line in lines[1:]:
+        parts = line.strip().split('\t')
+        spacerid = parts[0]
+    
+        if spacerid not in spacerid_set:
+            if len(spacerid_set) == 46652:
+                print(f"Creating subfile {output_file_number}.csv")
+                output_filename = f"{output_folder}subfile_{output_file_number}.csv"
+                write_output_file(output_filename, lines[0], spacerid_data)
+                spacerid_set.clear()
+                spacerid_data = defaultdict(list)
+                output_file_number += 1
+        
+            spacerid_set.add(spacerid)
+        
+        spacerid_data[spacerid].append(line)
+
+    # 处理最后一个子文件
+    if spacerid_data:
+        print(f"Creating subfile {output_file_number}.csv")
+        output_filename = f"{output_folder}subfile_{output_file_number}.csv"
+        write_output_file(output_filename, lines[0], spacerid_data)
+
+    print("Data processing completed.")
+
+def write_output_file(filename, header, spacerid_data):
+    with open(filename, 'w') as output_file:
+        output_file.write(header)  # 写入表头
+        for spacerid_lines in spacerid_data.values():
+            for data_line in spacerid_lines:
+                output_file.write(data_line)
+
+if __name__ == "__main__":
+    main()
+
+
+#rm bac_genome_taxid_blastn.csv
+```
+
+```{bash}
+#test
+
+import os
+import pandas as pd
+
+df1 = pd.read_csv("split_files/subfile_64.csv", sep='\t', engine='python')
+group_obj = df1.groupby(by='spacer')
+out = df1[df1["database"] == '123456']
+
+# 创建一个空 DataFrame，格式和其他的相同
+for i in list(group_obj):
+    smsp = i[1]
+    b09 = smsp[smsp["bitscore"] >= float(smsp.max(axis=0)['bitscore']) * 0.9]
+  
+    if 'Viruses' in str(b09['database']):
+        lst = b09[b09["database"] == 'Viruses']
+    elif 'plasmid' in str(b09['database']) or 'ICE' in str(b09['database']):
+        lst = b09[(b09["database"] == 'Bacteria_plasmid') | (b09["database"] == 'Archaea_plasmid') | (b09["database"] == 'ICE')]
+    else:
+        lst = b09
+  
+    out = pd.concat([out, lst], ignore_index=True)
+
+out.to_csv('sort_files/subfile_64.csv', sep='\t')
+
+#mk multiple scripts
+
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/script
+
+
+#!/bin/bash
+
+# Loop from 1 to 64
+for i in {1..64}; do
+    # Create a new output filename
+    new_filename="subfile_${i}.csv"
+  
+    # Read the original script and replace 'subfile_26.csv' with the new filename
+    sed "s/subfile_64.csv/${new_filename}/" sort.py > script_${i}.py
+done
+
+
+#submit
+
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/
+
+#!/bin/bash
+#SBATCH --job-name=filter
+#SBATCH --output=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.err
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=6G
+#SBATCH --array=1-64
+
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+
+python3 script/script_${SLURM_ARRAY_TASK_ID}.py
+```
+
+```{bash}
+cd /share/home/jianglab/shared/ouxinyi2liuzhen/sort_files
+
+head -1 subfile_1.csv
+#	spacer	user_genome	CRISPR	null	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database
+#0	GCA_000008085.1_ASM808v1_genomic.fna@AE017199.1@CRISPR:1@13653-14585@spacer_13681_38_1	GCA_000008085.1_ASM808v1_genomic.fna	GCA_000008085.1_ASM808v1_genomic.fna@AE017199.1@CRISPR:1		k__Archaea;p__Nanoarchaeota;c__Candidatus Nanoarchaeia;o__Nanoarchaeales;f__Nanoarchaeaceae;g__Nanoarchaeum;s__Nanoarchaeum equitans	228908	AE017199.1	100.0	38.0	0.0	0.0	1.0	38.0	13681.0	13718.0	5.75e-12	75.8	Bacteria
+
+
+cut -f19 subfile_1.csv|sort|uniq -c
+
+     16 Archaea
+1517093 Bacteria
+  49108 Bacteria_plasmid
+      1 database
+    752 Fungi
+     86 ICE
+    564 Protozoa
+ 236124 Viruses
+```
+
+### add subject taxid
+
+1、IMG和 ICE的 sseq(subject_sequence)分别提出以‘|’为分隔符的第 1、5 列，放到两个新的文件中。其他的数据库的放到第三个文件中。最后把3 个文件合并起来。(sseq格式修改)
+
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=filter
+#SBATCH --output=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.err
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=3g
+#SBATCH --array=1-64
+
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+
+awk -v FS='\t' -v OFS='\t' '$19=="ICE"{print $0}' sort_files/subfile_${SLURM_ARRAY_TASK_ID}.csv > mid_files/ICE_${SLURM_ARRAY_TASK_ID}.csv
+cat sort_files/subfile_${SLURM_ARRAY_TASK_ID}.csv |grep 'IMGVR_UViG_' > mid_files/IMG_${SLURM_ARRAY_TASK_ID}.csv
+
+#排除IMG和ICE的行
+awk -v FS='\t' -v OFS='\t' '$19!="ICE"{print $0}' sort_files/subfile_${SLURM_ARRAY_TASK_ID}.csv > mid_files/noICE_${SLURM_ARRAY_TASK_ID}
+cat mid_files/noICE_${SLURM_ARRAY_TASK_ID}|grep -v 'IMGVR_UViG_'> mid_files/other_database_${SLURM_ARRAY_TASK_ID}
+
+#提取 sseq
+cut -f7 mid_files/ICE_${SLURM_ARRAY_TASK_ID}.csv|cut -d '|' -f5 > mid_files/ICE_${SLURM_ARRAY_TASK_ID}_sseq.csv
+cut -f8 mid_files/IMG_${SLURM_ARRAY_TASK_ID}.csv|cut -d '|' -f1 > mid_files/IMG_${SLURM_ARRAY_TASK_ID}_sseq.csv
+cut -f8 mid_files/other_database_${SLURM_ARRAY_TASK_ID} > mid_files/other_sseq_${SLURM_ARRAY_TASK_ID}
+#paste ICE.csv ICE_sseq.csv > ICE_ok.csv
+paste mid_files/IMG_${SLURM_ARRAY_TASK_ID}.csv mid_files/IMG_${SLURM_ARRAY_TASK_ID}_sseq.csv > mid_files/IMG_ok_${SLURM_ARRAY_TASK_ID}
+paste mid_files/ICE_${SLURM_ARRAY_TASK_ID}.csv mid_files/ICE_${SLURM_ARRAY_TASK_ID}_sseq.csv > mid_files/ICE_ok_${SLURM_ARRAY_TASK_ID}
+paste mid_files/other_database_${SLURM_ARRAY_TASK_ID} mid_files/other_sseq_${SLURM_ARRAY_TASK_ID} > mid_files/other_ok_${SLURM_ARRAY_TASK_ID}
+
+sac 1446574
+
+
+#cat ICE_ok.csv IMG_ok.csv other_ok.csv |grep 'database'
+#	spacer	user_genome	CRISPR	null	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected
+vi other_ok.csv #修改第20列表头名称为 sseqid_corrected
+
+
+
+#!/bin/bash
+#SBATCH --job-name=filter
+#SBATCH --output=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.err
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=3g
+#SBATCH --array=1-64
+
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+
+file_path="mid_files/other_ok_${SLURM_ARRAY_TASK_ID}"
+new_value="sseqid_corrected"
+
+# 使用awk替换第一行的第二十列
+awk -F'\t' -v OFS='\t' 'NR==1 { $20 = "'$new_value'" }1' "$file_path" > mid_files/temp_file_${SLURM_ARRAY_TASK_ID} && mv mid_files/temp_file_${SLURM_ARRAY_TASK_ID} "$file_path"
+
+cat mid_files/other_ok_${SLURM_ARRAY_TASK_ID} mid_files/IMG_ok_${SLURM_ARRAY_TASK_ID} mid_files/ICE_ok_${SLURM_ARRAY_TASK_ID} > mid_files/all_database_ok_${SLURM_ARRAY_TASK_ID}
+
+#sac 1447572
+
+cut -f19 all_database_ok.csv|sort|uniq -c
+1209984 Archaea
+     80 Archaea_plasmid
+   4741 Bacteria
+     20 Bacteria_plasmid
+     44 Fungi
+     58 Protozoa
+  20046 Viruses
+      1 database
+
+
+head mid_files/all_database_ok_${SLURM_ARRAY_TASK_ID}
+```
+
+```{python}
+cd /share/home/jianglab/shared/ouxinyi2liuzhen
+
+# -*- coding: utf-8 -*-
+import pickle
+with open('/data/home/jianglab/share/seqid2taxid_23/dict_blastndb_23_seqid_taxid.pickle', 'rb') as f: 
+    dict = pickle.load(f) 
+print("dic loaded")
+FILE = open("/share/home/jianglab/shared/ouxinyi2liuzhen/mid_files/all_database_ok_57",'r')
+OUTPUT = open("/share/home/jianglab/shared/ouxinyi2liuzhen/bacteria23/all_database_ok_57",'w')
+F=FILE.readlines()
+#遍历文本文件的每一行，strip可以移除字符串头尾指定的字符（默认为空格或换行符）或字符序列
+for line in F:
+    line = line.strip()
+    id = line.split('\t')[-1] #文件是以\t分列的.最后一列即为-1
+    #print matched data items and filename 
+    if id in dict.keys():
+     print(line,dict[id],sep="\t",file=OUTPUT) 
+    else:
+        continue
+# 关闭FILE
+FILE.close()
+OUTPUT.close()
+
+
+
+#!/bin/bash
+
+# Loop from 1 to 64
+for i in {1..64}; do
+    # Create a new output filename
+    new_filename="all_database_ok_${i}"
+  
+    # Read the original script and replace 'subfile_26.csv' with the new filename
+    sed "s/all_database_ok_57/${new_filename}/" test.py > script_${i}.py
+done
+
+
+#submit
+
+
+#!/bin/bash
+#SBATCH --job-name=filter
+#SBATCH --output=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.err
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=50G
+#SBATCH --array=1-64
+
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+
+python3 script/script_${SLURM_ARRAY_TASK_ID}.py
+
+sac 1447680
+```
+
+```{bash}
+#!/bin/bash
+#SBATCH --job-name=filter
+#SBATCH --output=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.out
+#SBATCH --error=/share/home/jianglab/shared/ouxinyi2liuzhen/slurm.out/%x_%A_%a.err
+#SBATCH --partition=small
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=50G
+#SBATCH --array=1-64
+
+echo "SLURM_ARRAY_TASK_ID: " $SLURM_ARRAY_TASK_ID
+
+cut -f2- bacteria23/all_database_ok_${SLURM_ARRAY_TASK_ID} > bacteria23/bac_out_ok_${SLURM_ARRAY_TASK_ID}
+rm bacteria23/all_database_ok_${SLURM_ARRAY_TASK_ID}
+
+sac 1447764
+
+#header
+spacer	Genome	CRISPR	Lineage	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid	sub_taxid
+```
+
+### cripsr remove
+
+排除target 在arc和bac的crispr array的部分
+
+input  & 比对的 database 都是用crisprcasfinder找的
+
+```{bash}
+#判断targets是否是在crispr array 上：
+两种情况：targets有crispr array，targets没有crispr array
+
+1.其中targets有crispr的,
+要判断是不是在array上：
+cd /data/home/jianglab/share/seqid2taxid_23/output
+
+#选出到bacteria和bacteria_plasmid的
+awk -v FS="\t" -v OFS='\t' '{if ($18=="Bacteria" || $18=="Bacteria_plasmid")print}' arc_out_ok.csv > bigarc_out_to_bac.csv
+#选出到archaea和archaea_plasmid的
+awk -v FS="\t" -v OFS='\t' '{if ($18=="Archaea" || $18=="Archaea_plasmid")print}' arc_out_ok.csv > bigarc_out_to_arc.csv
+#选出除了以上两种情况的
+awk -v FS="\t" -v OFS='\t' '{if ($18!="Bacteria" && $18!="Bacteria_plasmid" && $18!="Archaea" && $18!="Archaea_plasmid")print}' arc_out_ok.csv > bigarc_out_except_bac_and_arc.csv
+
+#spacer	Genome	CRISPR	Lineage	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid	sub_taxid
+#MGYG000298001@MGYG000298001_37@CRISPR:1@11423-11750@spacer_11531_35_2	MGYG000298001	MGYG000298001@MGYG000298001_37@CRISPR:1d__Bacteria;p__Bacteroidota;c__Bacteroidia;o__Bacteroidales;f__Bacteroidaceae;g__Prevotella;s__Prevotella pallens	d__Bacteria;p__Bacteroidetes;c__Bacteroidia;o__Bacteroidales;f__Prevotellaceae;g__Prevotella;s__NCBI_UNKNOWN	838	IMGVR_UViG_7000000503_000020|7000000503|SRS053603_LANL_scaffold_24599	97.143	35.0	1.0	0.0	1.0	35.0	12734.0	12768.0	1.64e-061.9	Viruses	IMGVR_UViG_7000000503_000020	28883
+
+#表头提前
+awk -v FS="\t" -v OFS="\t" '{print $7,$0}' bigarc_out_to_bac.csv > mid_bigarc_out_to_bac
+sort -t $'\t' mid_bigarc_out_to_bac -k 1,1 -o mid_bigarc_out_to_bac
+#hits序列的 crispr 位点 index
+#cp /data/home/jianglab/share/bac_ccfinder_merge/refgb23_bac_crispr .
+#sort -t $'\t' refgb23_bac_crispr -k 1,1 -o refgb23_bac_crispr
+#合并
+join -t $'\t' mid_bigarc_out_to_bac refgb23_bac_crispr > bigarc_bac_part_with_crispr
+#去掉第一列
+cat bigarc_bac_part_with_crispr|cut -f2- > bigarc_bac_part_with_crispr_mid
+rm bigarc_bac_part_with_crispr
+mv bigarc_bac_part_with_crispr_mid bigarc_bac_part_with_crispr
+
+GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451@spacer_3021_31_42	GCA_027048795.1_ASM2704879v1_genomic.fna	GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Acidilobales;f__Acidilobaceae;g__unclassified Acidilobaceae genus;s__Acidilobaceae archaeon	2933264BQNG01000001.1	100.0	30.0	0.0	0.0	1.0	30.0	707873.0	707844.0	4.16e-05	60.0	BacteriBQNG01000001.1	471189	GCA_022834895.1_ASM2283489v1_genomic.fna	CRISPR:2	1289528	1290090
+GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451@spacer_3021_31_42	GCA_027048795.1_ASM2704879v1_genomic.fna	GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Acidilobales;f__Acidilobaceae;g__unclassified Acidilobaceae genus;s__Acidilobaceae archaeon	2933264BQNG01000001.1	100.0	30.0	0.0	0.0	1.0	30.0	707873.0	707844.0	4.16e-05	60.0	BacteriBQNG01000001.1	471189	GCA_022834895.1_ASM2283489v1_genomic.fna	CRISPR:2	1289528	1290090
+GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451@spacer_3021_31_42	GCA_027048795.1_ASM2704879v1_genomic.fna	GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Acidilobales;f__Acidilobaceae;g__unclassified Acidilobaceae genus;s__Acidilobaceae archaeon	2933264BQNG01000001.1	100.0	30.0	0.0	0.0	1.0	30.0	707873.0	707844.0	4.16e-05	60.0	BacteriBQNG01000001.1	471189	GCA_022834895.1_ASM2283489v1_genomic.fna	CRISPR:2	1289528	1290090
+GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451@spacer_3021_31_42	GCA_027048795.1_ASM2704879v1_genomic.fna	GCA_027048795.1_ASM2704879v1_genomic.fna@JALTVZ010000119.1@CRISPR:1@126-5451		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Acidilobales;f__Acidilobaceae;g__unclassified Acidilobaceae genus;s__Acidilobaceae archaeon	2933264BQNG01000001.1	100.0	30.0	0.0	0.0	1.0	30.0	707873.0	707844.0	4.16e-05	60.0	BacteriBQNG01000001.1	471189	GCA_022834895.1_ASM2283489v1_genomic.fna	CRISPR:2	1289528	1290090
+```
+
+```{bash}
+#sstart 位点和send位点大小判断
+cat bigarc_bac_part_with_crispr|cut -f14,15 > bigarc_bac_part_with_crispr_mid
+#颠倒顺序，小在前大在后
+awk -v FS="\t" '{if ($1 > $2) print $2"\t"$1; else print $1"\t"$2}' bigarc_bac_part_with_crispr_mid  > bigarc_bac_part_with_crispr_mid_mid
+paste bigarc_bac_part_with_crispr bigarc_bac_part_with_crispr_mid_mid  > total_info_bigarc_bac_target
+
+
+#正式判断
+#靶向crispr array 的部分（扩展- hit位点在array位点前后100bp内的都删除，不完整的片段最后repeat也会不完整）
+awk -v FS="\t" '{if($25 >= $23-100 && $26 <=$24+100)print $0}' total_info_bigarc_bac_target > bigarc_array_target_bac_part_crispr
+
+cat bigarc_array_target_bac_part_crispr|cut -f1|sort|uniq|wc -l 
+#2379 spacers target 到了crispr array 上
+```
+
+```{bash}
+#去掉比对到了array 上的部分
+cat bigarc_array_target_bac_part_crispr|cut -f 1,7 > bigarc_array_target_bac_part_crispr_mid
+
+`
+Ming_nova_VS_1_35_bwa_bin.11@NODE_39_length_59947_cov_13.136763@CRISPR:1@41255-41620@spacer_41421_34_3	AFQR01000033.1
+Ming_nova_VS_1_35_bwa_bin.11@NODE_39_length_59947_cov_13.136763@CRISPR:1@41255-41620@spacer_41487_36_4	AFQR01000033.1
+Ming_nova_VS_1_35_bwa_bin.11@NODE_39_length_59947_cov_13.136763@CRISPR:1@41255-41620@spacer_41555_34_5	AFQR01000033.1
+Ming_nova_VS_2_09_bwa_bin.1@NODE_65_length_12512_cov_80.267320@CRISPR:1@335-755@spacer_690_30_5	CSTQ01001111.1
+`
+#用slurm
+
+awk -v FS="\t" -v OFS="\t" 'NR==FNR{a[$1,$2];next} !($1,$7) in a' bigarc_array_target_bac_part_crispr_mid total_info_bigarc_bac_target > bigarc_bac_target_array_no_hits
+
+cat bigarc_bac_target_array_no_hits|cut -f1|sort|uniq|wc -l
+
+#6 spacers targets 有crispr array，但是target 位点不在array上
+```
+
+```{bash}
+2.有的contigs没有找到crispr array 这部分也要找出来
+
+#找到crispr array的
+cat total_info_bigarc_bac_target|cut -f7|sort|uniq > bigarc_target_bac_contig_have_spacer 
+
+#所有的
+cat mid_bigarc_out_to_bac|cut -f1|sort|uniq > bigarc_bac_contig 
+
+#sort 
+sort bigarc_bac_contig -k 1,1 -o bigarc_bac_contig
+sort bigarc_target_bac_contig_have_spacer -k 1,1 -o bigarc_target_bac_contig_have_spacer
+
+#没有找到crispr array的 contig
+comm -2 -3 bigarc_bac_contig bigarc_target_bac_contig_have_spacer > bigarc_bac_contig_no_spacer 
+
+#合并
+#表头提前
+
+sort mid_bigarc_out_to_bac -k 1,1 -o mid_bigarc_out_to_bac
+join -t$'\t' bigarc_bac_contig_no_spacer mid_bigarc_out_to_bac > rest_bigarc_no_array 
+cat rest_bigarc_no_array|cut -f2- > bigarc_bac_no_spacer
+
+#保证列数一致
+cat bigarc_bac_target_array_no_hits|cut -f-20 > 2bigarc_bac_target_array_no_hits
+
+#Ming_nova_VS_2_73_bwa_bin.3@NODE_409_length_7920_cov_18.158169@CRISPR:1@1616-1711@spacer_1640_48_1	Ming_nova_VS_2_73_bwa_bin.3	Ming_nova_VS_2_73_bwa_bin.3@NODE_409_length_7920_cov_18.158169@CRISPR:1	d__Bacteria;p__Firmicutes;c__Bacilli;o__Lactobacillales;f__Streptococcaceae;g__Streptococcus;s__	d__Bacteria;p__Tenericutes;c__Bacilli;o__Lactobacillales;f__Streptococcaceae;g__Streptococcus;s__	1301	NC_003028.3	100.0	48.0	0.0	0.0	1.0	48.0	102148.0	102195.0	6.52e-17	95.6	Bacteria	NC_003028.3	170187
+```
+
+```{bash}
+#整合
+#没有比对到array 上的：两种情况
+cat bigarc_bac_no_spacer 2bigarc_bac_target_array_no_hits|sort -k 1,1 > bigarc_bac_total_info 
+
+sort bigarc_bac_total_info -k 1,1 -o bigarc_bac_total_info
+#包括所有没有靶向array位点的targets
+#会有一条spacer 对应几个不同的targets，其中有一些target具有crispr array，有的没有
+
+cat bigarc_out_to_bac.csv|cut -f1|sort|uniq|wc -l
+#总共 3620 个spacers
+
+cat bigarc_bac_total_info|cut -f1|sort|uniq|wc -l
+#1331，符合要求的,就是没有靶向crispr array 的有多少spacers
+
+#故严格来说，最后靶向crispr array 的spacers 3620-1331=2289个
+
+注意，如果一个spacers 针对多条contigs，其中有的是在cirspr array 上，有的不是，那么就认为这个spacers 不针对crispr array，
+去掉是的那些结果，剩余的拿去做lca
+```
+
+ to arc part crispr removal
+```{bash}
+#2. archaea part
+
+#提取crispr注释信息（total refgb-archaea）
+#判断targets是否是在crispr array 上：
+#两种情况：targets有crispr array，targets没有crispr array
+#1.其中targets有crispr的,
+#要判断是不是在array上：
+
+#表头提前
+awk -v FS="\t" -v OFS="\t" '{print $7,$0}' bigarc_out_to_arc.csv > mid_bigarc_out_to_arc
+sort -t $'\t' mid_bigarc_out_to_arc -k 1,1 -o mid_bigarc_out_to_arc
+
+#合并
+#hits序列的 crispr 位点 index
+#cp /data/home/jianglab/share/arc_ccfinder/refgb23_arc_crispr .
+#sort refgb23_arc_crispr -k 1,1 -o refgb23_arc_crispr
+
+#!/bin/bash
+#SBATCH --job-name=arc_sbid
+#SBATCH --partition=short
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=350g
+
+join -t $'\t' mid_bigarc_out_to_arc refgb23_arc_crispr > bigarc_arc_part_with_crispr
+#去掉第一列
+cat bigarc_arc_part_with_crispr|cut -f2- > bigarc_arc_part_with_crispr_mid
+rm bigarc_arc_part_with_crispr
+mv bigarc_arc_part_with_crispr_mid bigarc_arc_part_with_crispr
+```
+
+```{bash}
+#sstart 位点和send位点大小判断
+cat bigarc_arc_part_with_crispr|cut -f14,15 > bigarc_arc_part_with_crispr_mid
+#颠倒顺序，小在前大在后
+awk -v FS="\t" '{if ($1 > $2) print $2"\t"$1; else print $1"\t"$2}' bigarc_arc_part_with_crispr_mid  > bigarc_arc_part_with_crispr_mid_mid
+paste bigarc_arc_part_with_crispr bigarc_arc_part_with_crispr_mid_mid  > total_info_bigarc_arc_target
+
+#正式判断
+#靶向crispr array 的部分
+awk -v FS="\t" '{if($25 >= $23-100 && $26 <=$24+100)print $0}' total_info_bigarc_arc_target > bigarc_array_target_arc_part_crispr
+
+#sac 1399944
+
+cut -f1 bigarc_array_target_arc_part_crispr|sort|uniq|wc -l 
+#226870 spacers target 到了crispr array 上
+
+#去掉比对到了array 上的部分
+cat bigarc_array_target_arc_part_crispr|cut -f 1,7 > bigarc_array_target_arc_part_crispr_mid
+
+`
+Ming_nova_VS_1_35_bwa_bin.11@NODE_39_length_59947_cov_13.136763@CRISPR:1@41255-41620@spacer_41421_34_3	AFQR01000033.1
+Ming_nova_VS_1_35_bwa_bin.11@NODE_39_length_59947_cov_13.136763@CRISPR:1@41255-41620@spacer_41487_36_4	AFQR01000033.1
+Ming_nova_VS_1_35_bwa_bin.11@NODE_39_length_59947_cov_13.136763@CRISPR:1@41255-41620@spacer_41555_34_5	AFQR01000033.1
+Ming_nova_VS_2_09_bwa_bin.1@NODE_65_length_12512_cov_80.267320@CRISPR:1@335-755@spacer_690_30_5	CSTQ01001111.1
+`
+awk -v FS="\t" -v OFS="\t" 'NR==FNR{a[$1,$2];next} !($1,$7) in a' bigarc_array_target_arc_part_crispr_mid total_info_bigarc_arc_target > bigarc_arc_target_array_no_hits
+
+cat bigarc_arc_target_array_no_hits|cut -f1|sort|uniq|wc -l
+
+#10494 spacers targets 有crispr array，但是target 位点不在array上
+
+2.有的contigs没有找到crispr array 这部分也要找出来
+
+#找到crispr array的
+cat total_info_bigarc_arc_target|cut -f7|sort|uniq > bigarc_target_arc_contig_have_spacer 
+
+#所有的
+cat mid_bigarc_out_to_arc|cut -f1|sort|uniq > bigarc_arc_contig 
+
+#sort 
+sort bigarc_arc_contig -k 1,1 -o bigarc_arc_contig
+sort bigarc_target_arc_contig_have_spacer -k 1,1 -o bigarc_target_arc_contig_have_spacer
+
+#没有找到crispr array的 contig
+comm -2 -3 bigarc_arc_contig bigarc_target_arc_contig_have_spacer > bigarc_arc_contig_no_spacer 
+
+#合并
+#表头提前
+
+sort mid_bigarc_out_to_arc -k 1,1 -o mid_bigarc_out_to_arc
+join -t$'\t' bigarc_arc_contig_no_spacer mid_bigarc_out_to_arc > rest_bigarc_no_array 
+cat rest_bigarc_no_array|cut -f2- > bigarc_arc_no_spacer
+
+#保证列数一致
+cat bigarc_arc_target_array_no_hits|cut -f-20 > 2bigarc_arc_target_array_no_hits
+
+#整合
+#没有比对到array 上的：两种情况
+cat bigarc_arc_no_spacer 2bigarc_arc_target_array_no_hits|sort -k 1,1 > bigarc_arc_total_info 
+
+sort bigarc_arc_total_info -k 1,1 -o bigarc_arc_total_info
+#包括所有没有靶向array位点的targets
+#会有一条spacer 对应几个不同的targets，其中有一些target具有crispr array，有的没有
+
+cat bigarc_out_to_arc.csv|cut -f1|sort|uniq|wc -l
+#总共 226870 个spacers
+
+cat bigarc_arc_total_info|cut -f1|sort|uniq|wc -l
+#20157 ，符合要求的,就是没有靶向crispr array 的有多少spacers
+
+#故严格来说，最后靶向crispr array 的spacers 226870-20157 个
+
+注意，如果一个spacers 针对多条contigs，其中有的是在cirspr array 上，有的不是，那么就认为这个spacers 不针对crispr array，
+去掉是的那些结果，剩余的拿去做lca
+```
+
+```{bash}
+#符合要求的表合并
+bigarc_arc_total_info
+bigarc_bac_total_info
+bigarc_out_except_bac_and_arc.csv
+
+cat bigarc_out_except_bac_and_arc.csv bigarc_bac_total_info bigarc_arc_total_info > bigarc_out_correct.csv
+
+spacer	Genome	CRISPR	Lineage	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1089065_40_107	GCA_000016605.1_ASM1660v1_genomic.fna	GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	399549	IMGVR_UViG_638275408_000001|638275408|638277531	100.0	40.0	0.0	0.0	1.0	40.0	18104.0	18065.0	1.5e-12	79.8	Viruses	IMGVR_UViG_638275408_000001	315953
+
+cat bigarc_out_correct.csv|cut -f1,18|sort|uniq|cut -f2|sort|uniq -c
+ 20157 Archaea
+   1321 Bacteria
+      7 Bacteria_plasmid
+     17 Fungi
+      7 Protozoa
+   6261 Viruses
+
+#next step:lca
+
+sac 1399975
+```
+
+得到 /data/home/jianglab/share/seqid2taxid_23/output/bigarc_out_correct.csv
+
+```{bash}
+#20列
+
+spacer	Genome	CRISPR	Lineage	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid
+
+GCA_009903825.1_ASM990382v1_genomic.fna@WYEN01000025.1@CRISPR:1@11753-13215@spacer_13110_21_21	GCA_009903825.1_ASM990382v1_genomic.fna	GCA_009903825.1_ASM990382v1_genomic.fna@WYEN01000025.1@CRISPR:1@11753-13215		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Desulfurococcales;f__unclassified Desulfurococcales family;g__unclassified Desulfurococcales genus;s__Desulfurococcales archaeon	2480821	SOZB01146001.1	100.0	21.0	0.0	0.0	1.0	21.0	237.0	257.0	0.04	42.1	Protozoa	SOZB01146001.1	2544991
+GCA_009903825.1_ASM990382v1_genomic.fna@WYEN01000025.1@CRISPR:1@11753-13215@spacer_13110_21_21	GCA_009903825.1_ASM990382v1_genomic.fna	GCA_009903825.1_ASM990382v1_genomic.fna@WYEN01000025.1@CRISPR:1@11753-13215		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Desulfurococcales;f__unclassified Desulfurococcales family;g__unclassified Desulfurococcales genus;s__Desulfurococcales archaeon	2480821	NC_010575.1	100.0	20.0	0.0	0.0	2.0	21.0	574153.0	574134.0	0.16	40.1	Protozoa	NC_010575.1	484906
+GCA_009903825.1_ASM990382v1_genomic.fna@WYEN01000025.1@CRISPR:1@11753-13215@spacer_13110_21_21	GCA_009903825.1_ASM990382v1_genomic.fna	GCA_009903825.1_ASM990382v1_genomic.fna@WYEN01000025.1@CRISPR:1@11753-13215		k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Desulfurococcales;f__unclassified Desulfurococcales family;g__unclassified Desulfurococcales genus;s__Desulfurococcales archaeon	2480821	JAIUGF010000049.1	100.0	20.0	0.0	0.0	2.0	21.0	46380.0	46399.0	0.16	40.1	Protozoa	JAIUGF010000049.1	5865
+GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277@spacer_24432_37_51	GCA_011058825.1_ASM1105882v1_genomic.fna	GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277		k__Archaea;p__Nitrososphaerota;c__Nitrososphaeria;o__Candidatus Nitrosocaldales;f__Candidatus Nitrosocaldaceae;g__Candidatus Nitrosocaldus;s__Candidatus Nitrosocaldus sp.	2697468	WUWU02000095.1	100.0	36.0	0.0	0.0	2.0	37.0	117999.0	118034.1.65e-09	71.9	Fungi	WUWU02000095.1	946125
+GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277@spacer_24432_37_51	GCA_011058825.1_ASM1105882v1_genomic.fna	GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277		k__Archaea;p__Nitrososphaerota;c__Nitrososphaeria;o__Candidatus Nitrosocaldales;f__Candidatus Nitrosocaldaceae;g__Candidatus Nitrosocaldus;s__Candidatus Nitrosocaldus sp.	2697468	QLPJ01003918.1	100.0	36.0	0.0	0.0	2.0	37.0	3857.0	3892.0	1.65e-071.9	Fungi	QLPJ01003918.1	57193
+```
+
+
+### PAM identification
+
+可能可以通过找blast结果protospacer是否有PAM来判断spacer target是否真实。找一下参考文献
+
+### LCA
+
+/data/home/jianglab/share/seqid2taxid_23/output/bigarc_out_correct.csv
+
+```{bash}
+spacer	Genome	CRISPR	Lineage	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid	sub_taxid
+Ming_nova_VS_1_12_bwa_bin.3@NODE_108_length_25362_cov_119.419528@CRISPR:1@22206-22945@spacer_22818_28_10	Ming_nova_VS_1_12_bwa_bin.3	Ming_nova_VS_1_12_bwa_bin.3@NODE_108_length_25362_cov_119.419528@CRISPR:1	d__Bacteria;p__Actinobacteriota;c__Actinomycetia;o__Actinomycetales;f__Bifidobacteriaceae;g__Bifidobacterium;s__Bifidobacterium arcle_D	d__Bacteria;p__Actinobacteria;c__Actinomycetia;o__Micrococcales;f__Bifidobacteriaceae;g__Bifidobacterium;s__Gardnerella arclis	2702	IMGVR_UViG_3300007843_000003|3300007843|Ga0105909_100124|1-16225	100.0	27.0	0.0	0.0	1.0	27.0	13846.0	13872.0	2.13e-05	54.0	Viruses	IMGVR_UViG_3300007843_000003	12429
+
+cat bigarc_out_correct.csv|cut -f18|sort|uniq -c
+
+1683477 Archaea
+   1732 Bacteria
+     16 Bacteria_plasmid
+     44 Fungi
+     58 Protozoa
+  19938 Viruses
+
+cut -f20 bigarc_out_correct.csv | less
+```
+
+1.每一个 spacer对应了多个 subject sequence，将这些 sseq对应的 taxid列成'a,a,a,b,d'的格式（利用字典存 spacer-subid,subid先存到一个 list里面，存完之后合并、统一输出到字典的键）;
+
+2.输入到 taxonkit里。
+
+整理spacer-subid成以下格式：
+
+```{bash}
+spacer	sub_taxid
+a       63221,2665953
+b       63221, 741158
+```
+
+```{bash}
+cut -f1,20 bigarc_out_correct.csv |sort|uniq > arc_spacer_subtaxid_uniq.csv
+#vi arc_spacer_subtaxid_uniq.csv
+#删尾行 header，加首行
+spacer	sub_taxid
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:3@944128-944291@spacer_944226_34_2	43687
+
+vi arc_spacer_subid.py
+
+#!/usr/bin/env python3
+import os
+import pandas as pd
+spacer_subtaxid=open('arc_spacer_subtaxid.csv','w')
+df1 = pd.read_csv("arc_spacer_subtaxid_uniq.csv",index_col=0,sep='\t',engine='python')
+group_obj = df1.groupby(by='spacer')
+for g in group_obj:
+	key=g[0]
+	val=g[1]
+	lst=list(val['sub_taxid'])
+	#[10662, 12429, 28883]
+	lst_new=[str(x) for x in list(val['sub_taxid'])]
+	sub_taxid=','.join(lst_new)
+	#'10662,12429,28883'
+	print(key+'\t'+sub_taxid,file= spacer_subtaxid)
+spacer_subtaxid.close()
+
+
+python arc_spacer_subid.py
+
+#出bug一般是pandas 版本问题，传送至本地运行
+
+
+#5603 arc_spacer_subtaxid.csv
+```
+
+### taxonkit lca
+
+```{bash}
+conda activate taxonkit
+cat arc_spacer_subtaxid.csv|taxonkit lca -i 2 -s "," >  arc_lca.csv
+#####！！！！
+#seperator=','，taxid在第二列
+#27529 arc_lca.csv
+
+conda deactivate
+```
+
+add source tax & target tax
+
+```{bash}
+>>>head arc_lca.csv
+#Ming_nova_VS_1_12_bwa_bin.3@NODE_108_length_25362_cov_119.419528@CRISPR:1@22206-22945@spacer_22242_28_1	1261068	1261068
+
+#cat taxid|taxonkit lineage|taxonkit reformat -f "{k}" |cut -f3 > king
+#替换 taxid
+conda activate taxonkit
+cat arc_lca.csv|cut -f3|taxonkit lineage|taxonkit reformat -f "{k}" |cut -f3 > arc_target_king
+#cat arc_lca.csv|cut -f3|taxonkit lineage|taxonkit reformat -f "{k}" |cut -f3|sort|uniq
+#
+#Archaea
+#Bacteria
+#Eukaryota
+#Viruses
+#空格是 cellular organisms:细胞生物。包括真核、原核（细菌+古菌），不包括病毒。
+#填充空格
+sed -i -e 's/^\s*$/cellular organisms/g'  arc_target_king
+
+#taxid转 lineage
+#cat taxid_bac_source |taxonkit lineage|taxonkit reformat -f "{k};{p};{c};{o};{f};{g};{s}" -F -P | csvtk cut -t -f -2
+cat arc_lca.csv|cut -f3|taxonkit lineage|taxonkit reformat -f "{k};{p};{c};{o};{f};{g};{s}" -F -P |cut -f1,3 > arc_target_lineage
+cat arc_lca.csv|cut -f1 > arc_spacer
+paste arc_spacer arc_target_lineage arc_target_king > arc_spacer_targetlk
+vi arc_spacer_targetlk加 header: 
+spacer	target_taxid	target_lineage	target_kingdom
+Ming_nova_VS_1_12_bwa_bin.3@NODE_108_length_25362_cov_119.419528@CRISPR:1@22206-22945@spacer_22242_28_1	1261068	k__Bacteria;p__Actinomycetota;c__Actinomycetes;o__Bifidobacteriales;f__Bifidobacteriaceae;g__Gardnerella;s__Gardnerella arclis	Bacteria
+
+
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1082266_38_1	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1082328_41_2	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1082393_40_3	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1082457_40_4	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1082521_39_5	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea
+```
+
+source: + kindom + lineage
+
+bigarc_out_correct.csv map 到 arc_spacer_targetlk
+
+```{bash}
+spacer	Genome	CRISPR	Lineage	NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid
+Ming_nova_VS_1_12_bwa_bin.3@NODE_108_length_25362_cov_119.419528@CRISPR:1@22206-22945@spacer_22818_28_10	Ming_nova_VS_1_12_bwa_bin.3	Ming_nova_VS_1_12_bwa_bin.3@NODE_108_length_25362_cov_119.419528@CRISPR:1	d__Bacteria;p__Actinobacteriota;c__Actinomycetia;o__Actinomycetales;f__Bifidobacteriaceae;g__Bifidobacterium;s__Bifidobacterium arcle_D	d__Bacteria;p__Actinobacteria;c__Actinomycetia;o__Micrococcales;f__Bifidobacteriaceae;g__Bifidobacterium;s__Gardnerella arclis	2702	IMGVR_UViG_3300007843_000003|3300007843|Ga0105909_100124|1-16225	100.0	27.0	0.0	0.0	1.0	27.0	13846.0	13872.0	2.13e-05	54.0	Viruses	IMGVR_UViG_3300007843_000003	12429
+
+#！！！删掉taxid=0（因为没有 gtdb分类）
+awk -v FS="\t" -v OFS="\t" '{if ($6!="0") print $0}' bigarc_out_correct.csv > arc_no0.csv
+# 1222647 arc_out_ok.csv  1705265 arc_no0.csv
+python
+
+import os
+import pandas as pd
+df1_csv = pd.read_csv("arc_spacer_targetlk", index_col=0,sep='\t',engine='python')
+df2_csv = pd.read_csv("arc_no0.csv", index_col=0,sep='\t',engine='python')
+df1_csv
+df2_csv
+left=df1_csv.merge(df2_csv,how='left',on='spacer')
+left.to_csv('arc_spacer_target.csv',sep='\t')
+
+#1705266 arc_spacer_target.csv
+1	2		3		4		5	6	(7❎)		8❎		9	10	11	12	13	14	15	16	17	18	19	20		21		22		23
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	Lineage		NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	Lineage		NCBI_taxonomy	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid
+
+#根据taxid 找source: + kindom + lineage
+cut -f-6,9- arc_spacer_target.csv > arc_spacer_target2.csv
+1	2		3		4		5	6	7
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid
+
+conda activate taxonkit
+cat arc_spacer_target2.csv|cut -f7|taxonkit lineage|taxonkit reformat -f "{k}" |cut -f3 > arc_source_king
+#vi arc_source_king#加 header 为spacer_kingdom
+sed -i -e 's/^\s*$/cellular organisms/g'  arc_source_king
+cat arc_spacer_target2.csv|cut -f7|taxonkit lineage|taxonkit reformat -f "{k};{p};{c};{o};{f};{g};{s}" -F -P |cut -f 1,3 > arc_source_lineage
+
+#vi arc_source_lineage 改 header为
+#spacer_taxid	spacer_lineage
+#2702	k__Bacteria;p__Actinomycetota;c__Actinomycetes;o__Bifidobacteriales;f__Bifidobacteriaceae;g__Gardnerella;s__Gardnerella arclis
+
+paste arc_spacer_target2.csv arc_source_lineage arc_source_king > arc_spacer_target_end.csv
+
+
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid	spacer_taxid	spacer_lineage	spacer_kingdom
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1082266_38_1	43687	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea	GCA_000016605.1_ASM1660v1_genomic.fna	GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896	399549	NZ_AP019770.1	100.0	38.0	0.0	0.0	1.0	38.0	1121804.0	1121841.0	5.75e-12	75.8	Archaea	NZ_AP019770.1	43687	399549	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea
+GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896@spacer_1082266_38_1	43687	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea	GCA_000016605.1_ASM1660v1_genomic.fna	GCA_000016605.1_ASM1660v1_genomic.fna@CP000682.1@CRISPR:4@1082242-1091896	399549	NZ_AP019770.1	100.0	38.0	0.0	0.0	1.0	38.0	1121804.0	1121841.0	5.75e-12	75.8	Archaea	NZ_AP019770.1	43687	399549	k__Archaea;p__Thermoproteota;c__Thermoprotei;o__Sulfolobales;f__Sulfolobaceae;g__Metallosphaera;s__Metallosphaera sedula	Archaea
+
+
+#vi arc_spacer_target_end.csv taxid->spacer_taxid,sseqid.1->sseqid_corrected
+
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	spacer_taxid	sseqid	pident	length	mismath	gapopen	qstart	qend	sstart	send	evalue	bitscore	database	sseqid_corrected	sub_taxid	spacer_taxid	spacer_lineage	spacer_kingdom
+
+cut -f24 arc_spacer_target_end.csv|less
+#确认header 和列是否对上
+```
+
+`/data/home/jianglab/share/seqid2taxid_23/output`/arc_spacer_target_end.csv
+
+把 target_kingdom 中的 Eukaryota分为Fungi+Protozoa
+
+```{bash}
+#spacer_kingdom——只能是 Bacteria 或 Archaea,检查是否有 Eukaryota。若有，则整行去掉。
+cat arc_spacer_target_end.csv |cut -f24|grep 'Eukaryota'|less
+
+#target_kingdom
+(base) [ouxinyi@login01 output]$ cat arc_spacer_target_end.csv|cut -f4|sort|uniq
+Archaea
+Bacteria
+cellular organisms
+Eukaryota
+Viruses
+
+awk -v FS="\t" -v OFS='\t' '{if ($4!="Eukaryota")print}' arc_spacer_target_end.csv> arc_no_Eukaryota.csv
+awk -v FS="\t" -v OFS='\t' '{if ($4=="Eukaryota")print}' arc_spacer_target_end.csv> arc_Eukaryota.csv
+
+#改-f4
+cat arc_Eukaryota.csv|cut -f2|taxonkit lineage > arc_Euk_lineage
+
+#arc_Euk_lineage放在最后一列，若f26含有Fungi，则换成 Fungi;若f25==2759,则 f4=Eukaryota.其他的Eukaryota行都换成Protozoa
+paste arc_Eukaryota.csv arc_Euk_lineage > arc_Eukaryota_Fungi_or_not
+#26列，最后一列指示是否是 Fungi
+#!!!若分类只到Eukaryota，要单独列出
+awk -v FS="\t" -v OFS="\t" '{if ($26 ~ /Fungi/) $4="Fungi"; else if ($25 == "2759") $4="Eukaryota";else $4="Protozoa"}1' arc_Eukaryota_Fungi_or_not > arc_Eukaryota_mid
+
+cut -f-24 arc_Eukaryota_mid > arc_Eukaryota_end
+cat arc_Eukaryota_end arc_no_Eukaryota.csv > arc_Fungi_Protozoa
+
+#24 列
+vi arc_Fungi_Protozoa   #加 header
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	spacer_taxid	sseqid	pident	length	mismath	gapopen	qstart	qends	start	send	evalue	bitscore	database	sseqid_corrected	sub_taxid	spacer_taxid2	spacer_lineage	spacer_kingdom
+```
+
+用seqkit找出 spacer的对应 sequence
+
+```{bash}
+cat arc_spacer_target_end.csv |cut -f1 |sort|uniq > arc_spacer_list
+#去arc_spacer_list最后一列的 spacer
+vi arc_spacer_list
+
+cd /data/home/jianglab/share/arc_ccfinder
+seqkit grep -f arc_spacer_list /data/home/jianglab/share/arc_ccfinder/arc_level4_spacer_one_line.fa > arc_with_blastn.fa
+#cat arc_with_blastn.fa|grep -v '>'|wc -l 	-v反向匹配，匹配没有>的行
+cat arc_with_blastn.fa|grep '>'|sort|uniq|wc -l
+wc -l arc_spacer_list
+#27529 arc_spacer_list
+```
+
+uniq spacer对应的blastn results
+
+awk 找出完全一样的spacers
+
+```{bash}
+
+#!/bin/bash
+#SBATCH --job-name=Bac_pap
+#SBATCH --output=/data/home/jianglab/share/bac_ccfinder_merge/slurm.out/%x_%A_%a.out
+#SBATCH --error=/data/home/jianglab/share/bac_ccfinder_merge/slurm.out/%x_%A_%a.err
+#SBATCH --partition=gpushort
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=1
+
+# 输入文件名
+input_file="arc_with_blastn.fa"
+# 输出文件名
+output_file="blastn_duplicates.txt"
+
+# 使用awk进行重复序列的查找和输出
+awk 'BEGIN {RS=">"; FS="\n"} 
+    NR>1 {seq=$2; 
+    if (seq in sequences) {sequences[seq]=sequences[seq] "," $1} 
+    else {sequences[seq]=$1}} 
+    END {for (seq in sequences) {print sequences[seq]}}' "$input_file" > tmp
+
+cat tmp|cut -f1 -d ','>tmp1
+paste tmp1 tmp>"$output_file"
+rm tmp tmp1
+
+#duplicates.txt有两列，第一列作为代表，第二列是重复情况
+#挑出不重复的部分
+
+awk '{print $1}' "$output_file" | seqkit grep -f - "$input_file" > arc_with_blastn_uniq.fa
+
+
+cat arc_with_blastn_uniq.fa|grep '>'|cut -d '>' -f2 > arc_with_blastn_uniq_list
+vi arc_with_blastn_uniq_list #加 header: spacer 
+
+import os
+import pandas as pd
+df1_csv = pd.read_csv("arc_with_blastn_uniq_list", index_col=0,sep='\t',engine='python')
+df2_csv = pd.read_csv("arc_Fungi_Protozoa", index_col=0,sep='\t',engine='python')
+left=df1_csv.merge(df2_csv,how='left',on='spacer')
+left.to_csv('arc_spacer_target_end_uniq.csv',sep='\t')
+
+```
+
+```{bash}
+#blastn results with unique spacers
+cd /data/home/jianglab/share/seqid2taxid_23/output
+head arc_spacer_target_end_uniq.csv 
+
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	spacer_taxid	sseqid	pident	length	mismath	gapopenqstart	qends	start	send	evalue	bitscore	database	sseqid_corrected	sub_taxid	spacer_taxid2	spacer_lineage	spacer_kingdom
+GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440@spacer_7240_36_10	2234	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	Archaea	GCA_001508815.1_ASM150881v1_genomic.fna	GCA_001508815.1_ASM150881v1_genomic.fna@LGEX01000085.1@CRISPR:1@6597-7440	2234	NZ_FJNF01000074.1	100.0	36.0	0.0	0.0	1.0	36.0	47.0	82.0	7.98e-11	71.9	Archaea	NZ_FJNF01000074.1	2234	2234	k__Archaea;p__Euryarchaeota;c__Archaeoglobi;o__Archaeoglobales;f__Archaeoglobaceae;g__Archaeoglobus;s__Archaeoglobus fulgidus	Archaea
+GCA_001577555.1_ASM157755v1_genomic.fna@LSRU01000020.1@CRISPR:1@57-1111@spacer_1041_34_14	1864608	k__Archaea;p__Euryarchaeota;c__Methanomicrobia;o__Methanosarcinales;f__Methanosarcinaceae;g__Methanohalophilus;s__Methanohalophilus sp. DAL1	ArchaeaGCA_001577555.1_ASM157755v1_genomic.fna	GCA_001577555.1_ASM157755v1_genomic.fna@LSRU01000020.1@CRISPR:1@57-1111	1794907	MAFX01000027.1	100.0	34.0	0.0	0.0	1.0	34.0	14523.0	14490.0	1.17e-09	67.9	Archaea	MAFX01000027.1	18646081794907	k__Archaea;p__Euryarchaeota;c__Methanomicrobia;o__Methanosarcinales;f__Methanosarcinaceae;g__Methanohalophilus;s__Methanohalophilus sp. T328-1	Archaea
+GCA_001577555.1_ASM157755v1_genomic.fna@LSRU01000114.1@CRISPR:1@10808-13403@spacer_11666_40_12	51203	k__Archaea;p__Euryarchaeota;c__Methanomicrobia;o__Methanosarcinales;f__Methanosarcinaceae;g__Methanohalophilus;s__Methanohalophilus euhalobius	ArchaeaGCA_001577555.1_ASM157755v1_genomic.fna	GCA_001577555.1_ASM157755v1_genomic.fna@LSRU01000114.1@CRISPR:1@10808-13403	1794907NZ_PVBU01000003.1	100.0	40.0	0.0	0.0	1.0	40.0	183572.0	183533.0	4.09e-13	79.8	Archaea	NZ_PVBU01000003.1	51203	1794907	k__Archaea;p__Euryarchaeota;c__Methanomicrobia;o__Methanosarcinales;f__Methanosarcinaceae;g__Methanohalophilus;s__Methanohalophilus sp. T328-1	Archaea
+```
+
+### adding target genome
+
+```{bash}
+分为病毒和其他，病毒部分不知道genome，还是用sseqid代替，其他的用查字典的方式寻找genome，参考语雀 - "taxon&genomes" - targeting genomes mapping
+
+cd /data/home/jianglab/share/seqid2taxid_23/output
+
+head arc_Fungi_Protozoa  
+#spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	spacer_taxid	sseqid	pident	length	mismath	gapopen	qstart	qends	start	send	evalue	bitscore	database	sseqid_corrected	sub_taxid	spacer_taxid2	spacer_lineage	spacer_kingdom
+
+
+awk -v FS="\t" -v OFS="\t" '{if ($4=="Viruses")print}' arc_Fungi_Protozoa > arc_Fungi_Protozoa_virus
+awk -v FS="\t" -v OFS="\t" '{if ($4!="Viruses")print}' arc_Fungi_Protozoa > arc_Fungi_Protozoa_others
+
+#others 部分找 genomes
+
+#soil是第8列，其他是第7列
+cd /data/home/jianglab/share/blastdb_new
+
+
+# -*- coding: utf-8 -*-
+import pickle
+with open('dict_rsgb_23.pickle', 'rb') as f: 
+    dict = pickle.load(f) 
+print("dic loaded")
+FILE = open("/data/home/jianglab/share/seqid2taxid_23/output/arc_Fungi_Protozoa_others",'r')
+OUTPUT = open("./output/arc_rest_out",'w')
+#遍历文本文件的每一行，strip可以移除字符串头尾指定的字符（默认为空格或换行符）或字符序列
+for line in FILE:
+    line = line.strip()
+    id = line.split('\t')[7] #文件是以空格分列的
+    #print matched data items and filename 
+    if id in dict.keys():
+    	print(line,dict[id],sep="\t",file=OUTPUT) 
+    else:
+        continue
+# 关闭FILE
+FILE.close()
+
+#!/bin/bash
+#SBATCH --job-name=find
+#SBATCH --partition=mem
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --mem-per-cpu=200g
+python3 lk.py
+
+#sac 1402651
+5min,50g
+
+#删除空行
+# cat output/arc_rest_out|tr -s '\n' 
+
+cd /data/home/jianglab/share/blastdb_new/output
+
+
+#arc_rest_out添加表头，soil 26列, 其他 25列
+spacer	target_taxid	target_lineage	target_kingdom	Genome	CRISPR	spacer_taxid	sseqid	pident	length	mismath	gapopenqstart	qends	start	send	evalue	bitscore	database	sseqid_corrected	sub_taxid	spacer_taxid2	spacer_lineage	spacer_kingdom	target_genome
+
+
+GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277@spacer_24432_37_51	451864	k__Eukaryota;p__unclassified Fungi phylum;c__unclassified Fungi class;o__unclassified Fungi order;f__unclassified Fungi family;g__unclassified Fungi genus;s__unclassified Fungi species	Fungi	GCA_011058825.1_ASM1105882v1_genomic.fna	GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277	2697468	WUWU02000095.1	100.0	36.0	0.0	0.0	2.0	37.0	117999.0	118034.0	1.65e-09	71.9	Fungi	WUWU02000095.1	946125	2697468	k__Archaea;p__Nitrososphaerota;c__Nitrososphaeria;o__Candidatus Nitrosocaldales;f__Candidatus Nitrosocaldaceae;g__Candidatus Nitrosocaldus;s__Candidatus Nitrosocaldus sp.	Archaea	GCA_011750715.2_ASM1175071v2_genomic.fna
+GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277@spacer_24432_37_51	451864	k__Eukaryota;p__unclassified Fungi phylum;c__unclassified Fungi class;o__unclassified Fungi order;f__unclassified Fungi family;g__unclassified Fungi genus;s__unclassified Fungi species	Fungi	GCA_011058825.1_ASM1105882v1_genomic.fna	GCA_011058825.1_ASM1105882v1_genomic.fna@JAACYF010000004.1@CRISPR:1@21043-28277	2697468	QLPJ01003918.1	100.0	36.0	0.0	0.0	2.0	37.0	3857.0	3892.0	1.65e-09	71.9	Fungi	QLPJ01003918.1	57193	2697468	k__Archaea;p__Nitrososphaerota;c__Nitrososphaeria;o__Candidatus Nitrosocaldales;f__Candidatus Nitrosocaldaceae;g__Candidatus Nitrosocaldus;s__Candidatus Nitrosocaldus sp.	Archaea	GCA_003314235.1_ASM331423v1_genomic.fna
+
+#病毒部分不知道genome，还是用sseqid代替
+cd /data/home/jianglab/share/seqid2taxid_23/output
+awk -v FS="\t" -v OFS="\t" '{print $0,$8}' arc_Fungi_Protozoa_virus > arc_Fungi_Protozoa_virus2
+
+
+#合并,25列
+cat /data/home/jianglab/share/blastdb_new/output/arc_rest_out arc_Fungi_Protozoa_virus2 > arc23_all_info
+
+
+#blastn database
+cut -f19 arc23_all_info|sort|uniq
+Archaea
+Bacteria
+Bacteria_plasmid
+database
+Fungi
+Protozoa
+Viruses
+
+#after lca - target kingdom
+cut -f1,4 arc23_all_info|sort|uniq|cut -f2|sort|uniq -c
+  19902 Archaea
+   1091 Bacteria
+    261 cellular organisms
+      1 Eukaryota
+     10 Fungi
+      4 Protozoa
+      1 target_kingdom
+   6260 Viruses
+```
+
+
+## find up and down gene
+```{bash}
+$head 3bac_total_bac_in_gene
+NZ_FLAI01000001.1-CRISPR:1-107524-108392-spacer-2	AAAAGT020000032.1	10859	10890	562	Bacteria	100	63.9	GCA_004157305.2_PDT000315556.2_genomic.fna	>3845 AAAAGT020000032.1 10734 11060 + gene_type=atypical	in_gene
+
+#第一列是spacer id，然后是target sequence id以及start和end，我已经按target sequence id以及start和end sort好了。
+
+$ head info_big_bac_list
+>1 AP008229.1 110 1369 + gene_type=native
+
+#这个文件是所有基因的信息，通过这个就可以判断上下游和是否在基因内
+
+#目标是找到3bac_total_bac_in_gene每个intergenic spacer的上下游
+
+#1.uniq target sequence id以及start和end 三列，因为只要找这部分就行，没必要重复找，后面使用join即可。
+cat 3bac_total_bac_intergenic|cut -f2,3,4|uniq >all_intergenic
+cat all_intergenic|awk -F"\t" '{OFS="\t"; print $1"-"$2"-"$3"\t"$0}' >all_intergenic1
+cat 3bac_total_bac_intergenic|awk -F"\t" '{OFS="\t"; print $2"-"$3"-"$4"\t"$1}' >spacer2target
+
+#2.写了一个脚本find_up_down.py,通过二分法快速找到一个target的位置并确定其上下游
+#但是info_big_bac_list这个文件非常大，49G，pandas无法顺利读取（即便给了200G内存，当然也很慢）
+#所以打算按找sequence的前四个字符拆分成很多小文件，每次只需要读取对应的那个小文件即可
+#拆分文件用split_file.py做，
+
+#3.最后只需要运行
+python find_up_down.py -i all_intergenic1 -o target_up_down
+
+join -a1 spacer2target target_up_down >all_spacer_up_down
+
+#4.手动多线程
+split -l 300000 all_intergenic1 -d -a1 intergenic_
+
+i=$SLURM_ARRAY_TASK_ID
+echo $i
+python find_up_down.py -i intergenic_$i -o target_up_down_$i -l log_$i
+
+#python find_up_down.py -i test3 -o test_out -l log
+
+cat target_up_down_* >target_up_down
+join -a1 spacer2target target_up_down >all_spacer_up_down
+```
+
+测试github
