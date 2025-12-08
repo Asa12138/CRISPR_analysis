@@ -1,0 +1,335 @@
+# Correlation between HGT and intraspecies CRISPR-targeting 
+
+## Packages
+
+```{r}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(ggsignif)
+library(stats)
+```
+
+## data preparation
+
+```{r}
+species <- list.files("data/all_within_sp_ani/ANI_out/") |>
+  gsub("_ANI_output", "", x = _)
+
+process_species <- function(sp) {
+  
+  # read  ANI out
+  hgt <- read_tsv(
+    file.path("data/all_within_sp_ani/ANI_out", paste0(sp, "_ANI_output")),
+    col_names = FALSE
+  )[1:5]
+  
+  colnames(hgt) <- c("Target_genome","Source_genome","ANI",
+                     "Align_fraction_target","Align_fraction_source")
+  
+  hgt <- hgt %>%
+    mutate(
+      Target_genome = gsub(paste0(sp, "/target_ani/"), "", Target_genome),
+      Source_genome = gsub(paste0(sp, "/target_ani/"), "", Source_genome)
+    )
+  
+  # read target count
+  tgt <- read_tsv(
+    file.path("data/all_within_sp_ani/all_target_count", paste0(sp, "_count")),
+    col_names = FALSE
+  )
+  colnames(tgt) <- c("target_count","Source_genome","Target_genome")
+  
+  # merge
+  merged <- merge(hgt, tgt) %>%
+    mutate(
+      ANI = as.numeric(ANI),
+      target_count = as.factor(target_count),
+      range = cut(
+        ANI,
+        breaks = c(50, seq(95, 100, 0.5)),
+        labels = c("<95","95-95.5","95.5-96","96-96.5","96.5-97",
+                   "97-97.5","97.5-98","98-98.5","98.5-99",
+                   "99-99.5","99.5-100"),
+        right = TRUE
+      ),
+      Species = sp
+    ) %>%
+    filter(!is.na(range))
+  
+  return(merged)
+}
+
+all_count_ani_data <- map_df(species, process_species)
+
+all_count_ani_data <- all_count_ani_data %>%
+  mutate(
+    target_count = factor(target_count, 
+                          levels = sort(unique(target_count))),
+    target_count = as.numeric(target_count)
+  ) %>%
+  filter(!is.na(target_count))
+
+#write.table(all_count_ani_data,"./data/all_within_sp_ani/all_count_ani_data.tsv",sep = "\t")
+```
+
+## Fig 6b Target count - HGT - ANI
+
+```{r}
+sp_ratio_ge3_v2 = aggregate(all_count_ani_data$target_count,list(all_count_ani_data$ANI_range), function(x) sum(x > 3)/length(x))
+colnames(sp_ratio_ge3_v2) = c("ANI_range","Ratio")
+HGT_median_v2 = aggregate(select_count_ani_data$HGT,list(select_count_ani_data$ANI_range),mean)
+colnames(HGT_median_v2) = c("ANI_range","HGT")
+
+hgt_ani = summary(nls(data = HGT_median_v2,HGT ~  1500*(exp(a * (ANI_range - 99.5))),start = list(a = 0.1),control = nls.control(maxiter = 5000)))
+ratio_ani = summary(nls(data = sp_ratio_ge3_v2,Ratio*50 ~  ((exp(a * (ANI_range - 99.5)))),start = list(a = 0.1),control = nls.control(maxiter = 5000)))
+
+p = ggplot()+
+    geom_boxplot(outlier.colour = NA)+
+    geom_point(data = sp_ratio_ge3_v2,aes(y=Ratio*100*800,x=ANI_range,color = "Genome Pairs with \nCRISPR targets >3"),size = 4,shape = 18)+
+    #geom_line(data = sp_ratio_ge3_v2,aes(x =ANI_range,y = 182.75*(exp(0.72470 * (ANI_range - 99.5))),color = "Genome Pairs with \nCRISPR targets >3"),size =1)+
+    geom_point(data = HGT_median_v2,aes(x=ANI_range,y=HGT,color = "Median of HGT"),size = 4,shape = 18)+
+    #geom_line(data = HGT_median_v2,aes(x =ANI_range,y = 210*((exp(1.4229* (ANI_range - 99.5)))),color = "Median of HGT"),size =1)+
+    theme_classic(base_size = 20) +
+    theme(plot.title = element_text(size = 20),axis.text.x = element_text(angle = 60,size=15,hjust = 1,vjust = 1),axis.title.y = element_text(size=20))+
+    labs(y = "Ratio(%)",x="ANI_range (%)")+
+    scale_x_reverse(breaks = (seq(90.5,99.5,1)),labels =(paste(as.character(seq(90,99,1)),"-",as.character(seq(91,100,1)))))+
+    #scale_x_reverse()+
+    scale_y_continuous(
+      name = "Median of HGT", 
+      sec.axis = sec_axis(~./100, name = "Genome Pairs with CRISPR \ntargets >3 Ratio (%)")  # 设置第二个 y 轴并缩放
+    )+
+    scale_color_manual(values = c("Genome Pairs with \nCRISPR targets >3" = "#D88F5E", "Median of HGT" = "#80B9AD")) 
+    # annotate("text",x=93.5,y=200,label="P-value of exponential regression:")+
+    # annotate("text",x=92.5,y=175,label="P1=5.09e-06",color = "#80B9AD")+
+    # annotate("text",x=92.5,y=150,label="P2=8.2e-08",color = "#D88F5E")
+
+p+theme(legend.position = "top",
+        legend.text = element_text(size=12),
+        legend.title = element_blank(),
+        axis.title.y.left  = element_text(size = 18,color="#80B9AD"),
+        axis.title.y.right = element_text(size = 16,color="#D88F5E"),
+        axis.text = element_text(color = "black"),
+        axis.text.x = element_text(angle = 60,size=15,hjust = 1,vjust = 1),
+        plot.title = element_text(size = 18),
+        axis.title.y = element_text(size=18)
+        )
+```
+
+# Target conserved region
+
+Statistic analysis using 25 species with most intra-species spacer-target pairs
+
+## Read data
+
+Intraspecies CRISPR targets were mapped to gene clusters of corresponding pangenome in Propan database
+
+```{r}
+filename = list.files("./data/pangenome_res/annotation_add_conservation/")
+sp_names =  gsub("_annotation$", "", filename)
+
+for (sp  in sp_names) {
+  annotation = readr::read_tsv(file = paste0("./data/pangenome_res/annotation_add_conservation/",sp,"_annotation"))
+  map_res = readr::read_tsv(file = paste0("./data/pangenome_res/final_res/",sp,"_res"),col_names = F)[,c(1,3,4,13,14)]
+  
+  colnames(map_res) = c("source","identity","match_length","source_length","Clusters")
+  
+  map_res = cbind(map_res,Species = rep(sp,nrow(map_res)))
+  map_res = left_join(map_res,annotation[,c(1,2,12)])
+  
+  if(!exists("all_mapping_res")) {
+    all_mapping_res = map_res
+  } else {
+    all_mapping_res = rbind(all_mapping_res,map_res)
+  }
+
+}
+
+all_mapping_res = all_mapping_res %>% distinct(source,Clusters , .keep_all = TRUE)
+
+all_mapping_res_uniq_source = all_mapping_res %>%  distinct(source , .keep_all = TRUE)
+
+#write.table(all_mapping_res_uniq_source,"data/pangenome_res/all_mapping_res_uniq_source.tsv")
+
+```
+
+## Pangenome background
+
+Summary of gene clusters pangenomes of those species
+
+```{r}
+
+all_mapping_res_uniq_source = read.table("data/pangenome_res/all_mapping_res_uniq_source.tsv",sep = " ")
+c
+count_freq = aggregate(data = all_mapping_res_uniq_source,source ~ Species + `Pangenome.Class`, FUN = length)
+
+p = ggplot(count_freq,aes(x=as.factor(Species),y=source,fill = `Pangenome.Class`))+
+  geom_bar(stat ="identity" ,position ="stack")+
+  theme_bw(base_size = 15)+
+  theme(axis.text.x = element_text(angle = 75,color="black",hjust = 1,vjust = 1,size=8.5,face="bold"), axis.text.y=element_text(color="black",face="bold",size=13),axis.title.x = element_blank(),axis.title.y =element_text(color="black",face="bold"))+
+  ylab("Target Count")+
+  #geom_point(data= median_ubi[median_ubi$Species %in% sp_list,],aes(x=Species,y=median),size=3,shape = 18,color = "Black")+
+  scale_fill_manual(values =  colorRampPalette(brewer.pal(9, "Set1"))(3))
+
+#ggsave("./data/pangenome_res/Pangenome_target.jpg",width = 8,height = 6)
+```
+
+## Fig 6d
+
+From unique to core genes
+
+```{r}
+## Annotate paired wilcox test
+paired_core = wilcox.test(count_by_type_2[count_by_type_2$Cluster_type == "core",]$Relative_count,count_by_type_2[count_by_type_2$Cluster_type == "core",]$Relative_background, paired = TRUE)$p.value
+paired_extended = wilcox.test(count_by_type_2[count_by_type_2$Cluster_type == "extended core",]$Relative_count,count_by_type_2[count_by_type_2$Cluster_type == "extended core",]$Relative_background, paired = TRUE)$p.value
+paired_shell = wilcox.test(count_by_type_2[count_by_type_2$Cluster_type == "shell",]$Relative_count,count_by_type_2[count_by_type_2$Cluster_type == "shell",]$Relative_background, paired = TRUE)$p.value
+paired_cloud = wilcox.test(count_by_type_2[count_by_type_2$Cluster_type == "cloud",]$Relative_count,count_by_type_2[count_by_type_2$Cluster_type == "cloud",]$Relative_background, paired = TRUE)$p.value
+paired_unique = wilcox.test(count_by_type_2[count_by_type_2$Cluster_type == "unique",]$Relative_count,count_by_type_2[count_by_type_2$Cluster_type == "unique",]$Relative_background, paired = TRUE)$p.value
+
+paired_test_value = paste0("p = ",format(c(paired_core,paired_extended,paired_shell,paired_cloud,paired_unique),format = "e", digits = 2),c(" ***"," ***"," ***"," ***"," ***"))
+#
+count_by_type_melt_2$Cluster_type[count_by_type_melt_2$Cluster_type=="extended\n core"] = "extended core"
+count_by_type_melt_2$Cluster_type = factor(count_by_type_melt_2$Cluster_type,levels = c("unique","cloud","shell","extended core","core"))
+
+p = ggplot(count_by_type_melt_2[count_by_type_melt_2$Species != "Vibrio_fluvialis",])+
+  facet_wrap(~ Cluster_type,scales = "fixed",ncol = 5) +
+  scale_color_manual(values = c("Relative_count" = "#D88F5E", "Relative_background" = "grey50"),  # 手动设置颜色
+                     name = "Group",  # 图例标题
+                     labels = c("Relative_count" = "Observed Target", "Relative_background" = "Background")) +  # 手动设置图例标签
+  geom_boxplot(aes(x=variable,y=Percentage,color = variable),position = "dodge",outlier.shape = NA)+
+  geom_line(aes(x=variable,y=Percentage,group = Species),color = "grey80",alpha = 0.8,size =0.3)+
+  geom_jitter(aes(x=variable,y=Percentage,color = variable),position =  position_dodge(width = 0.75))+
+  labs(y="Proportion",x = element_blank(),title = element_blank())+
+    theme_classic(base_size = 15)+
+    theme(#axis.line.x = element_blank(),
+          axis.text.x= element_blank(),
+          axis.text.y= element_text(size = 20),
+          axis.ticks.x = element_blank(),
+          legend.position = "bottom",  # 设置图例位置
+          legend.direction = "horizontal",  
+          legend.title = element_text(size = 20),  # 设置图例标题字体大小
+          legend.text = element_text(size = 17),
+          legend.key.size = unit(1.5,"cm"),  # 调整图例键的大小
+          #strip.background = element_blank(),
+          strip.text = element_text(size = 15),  # 调整字体大小、样式和颜色
+          strip.placement = "outside") + # 分面标题放在外面
+          theme(axis.title =element_text(color="black",size = 25))+
+          geom_text(data = data.frame(annotation = paired_test_value,x= rep(1.5,5),y = rep(0.8,5),Cluster_type = factor(c("core","extended core","shell","cloud","unique"))), aes(x = x, y = y, label = annotation,group =Cluster_type ), size = 5, color = "black")
+p
+#ggsave(paste0("./data/pangenome_res/prevalance/total_8",".pdf"),height = 5,width = 10)
+```
+
+## Fig 6e
+
+View in conservation bins
+
+```{r}
+## vis 
+count_by_prevalance_melt = melt(data = count_by_prevalance,id.vars = c("Species","Intervals"),measure.vars = c("Target_Count","Background"),value.name = c("Count"))
+summary_prevalance = aggregate(count_by_prevalance_melt$Count,by = list(count_by_prevalance_melt$Intervals,count_by_prevalance_melt$variable),sum)
+colnames(summary_prevalance) = c("Intervals","Group","Count")
+
+summary_prevalance$Count[summary_prevalance$Group == "Target_Count"] = summary_prevalance$Count[summary_prevalance$Group == "Target_Count"]/sum(summary_prevalance$Count[summary_prevalance$Group == "Target_Count"])
+summary_prevalance$Count[summary_prevalance$Group == "Background"] = summary_prevalance$Count[summary_prevalance$Group == "Background"]/sum(summary_prevalance$Count[summary_prevalance$Group == "Background"])
+
+ks.test(x=summary_prevalance$Count[summary_prevalance$Group == "Background"],y=summary_prevalance$Count[summary_prevalance$Group == "Target_Count"],alternative = "less")
+
+summary_prevalance$Intervals = as.numeric(summary_prevalance$Intervals)
+p = ggplot()+
+  #facet_wrap(~ Species,scales = "free",ncol = 5) +
+  geom_bar(data = summary_prevalance[summary_prevalance$Group == "Background",],aes(x=as.numeric(Intervals),y=Count),fill = "grey80",stat = "identity",alpha = 0.8) +
+  geom_bar(data = summary_prevalance[summary_prevalance$Group == "Target_Count",],aes(x=as.numeric(Intervals),y=Count),stat = "identity",fill = "#D78F5D",alpha = 0.9)+
+  labs(y="Proportion",x = "Conservarion",title = element_blank())+
+    theme_classic(base_size = 15)+
+    theme(#axis.line.x = element_blank(),
+          axis.text.x= element_text(size = 13,angle = 60,hjust = 1,vjust = 1,color = "black"),
+          axis.text.y= element_text(size = 12,color = "black"),
+          strip.background = element_blank())+
+    theme(axis.title =element_text(color="black",size = 20))+
+    coord_trans(x = "sqrt",y = "sqrt")# +
+    #   scale_x_continuous(breaks = c(0.001,0.15,0.5,0.9,1.0))+
+    #   scale_y_continuous(breaks = c(0.01,0.1,0.3,0.6))
+p
+p + geom_text(data = p_annotation[p_annotation$Species != "Vibrio_fluvialis",], aes(x = x, y = y, label = annotation,group = Species), size = 5, color = "black")
+#ggsave(paste0("./data/pangenome_res/prevalance/total_6_new",".pdf"),height = 3,width = 7)
+```
+
+## Fig S10
+
+Comparison of representative species
+
+```{r}
+breaks = seq(0,1.001,0.001)
+labels = seq(0,1.00,0.001)
+
+all_annotation$group = cut(all_annotation$Relative_Prevalance, breaks = breaks, labels = labels, right = FALSE)
+
+count_by_prevalance  = aggregate(all_annotation$target_count,by = list(all_annotation$Species,all_annotation$group),sum)
+count_background = aggregate(all_annotation$conservation,by = list(all_annotation$Species,all_annotation$group),sum)
+
+count_by_prevalance = cbind(count_by_prevalance,Background = count_background[,3])
+
+colnames(count_by_prevalance) = c("Species","Intervals","Target_Count","Background")
+count_by_prevalance$Intervals = as.numeric((count_by_prevalance$Intervals))
+
+## annotation of relative count 
+count_by_prevalance$Relative_count = count_by_prevalance$Target_Count
+for (i in count_by_prevalance$Species) {
+  count_by_prevalance$Relative_count[count_by_prevalance$Species == i] = count_by_prevalance$Target_Count[count_by_prevalance$Species == i]/sum(count_by_prevalance$Target_Count[count_by_prevalance$Species == i])
+}
+
+## annotation of relative background count
+count_by_prevalance$Relative_background = count_by_prevalance$Background
+for (i in count_by_prevalance$Species) {
+  count_by_prevalance$Relative_background[count_by_prevalance$Species == i] = count_by_prevalance$Background[count_by_prevalance$Species == i]/sum(count_by_prevalance$Background[count_by_prevalance$Species == i])
+}
+
+#count_by_prevalance$Relative_background
+
+
+## annotate P-value
+### calculate K-S p-value
+p_annotation = data.frame(Species = unique(count_by_prevalance$Species),x = rep(0.35,26),y = rep(0.3,26),p_value = rep(0,26))
+
+for (i in unique(count_by_prevalance$Species)) {
+   ks_res =  ks.test(count_by_prevalance$Relative_count[count_by_prevalance$Species == i], count_by_prevalance$Relative_background[count_by_prevalance$Species == i])
+   p_annotation$p_value[p_annotation$Species == i]  = ks_res$p.value
+}
+
+ p_annotation$p_value = formatC(p_annotation$p_value, format = "e", digits = 2)
+
+ p_annotation$annotation = paste0("p = ",p_annotation$p_value)
+
+p_annotation$p_value = as.numeric(p_annotation$p_value)
+ for (i in 1:26) {
+   if(p_annotation$p_value[i] <= 0.0001)
+     p_annotation$annotation[i] = paste0(p_annotation$annotation[i]," ***")
+
+   if (p_annotation$p_value[i] <= 0.001 && p_annotation$p_value[i] > 0.0001)
+     p_annotation$annotation[i] = paste0(p_annotation$annotation[i]," **")
+
+   if (p_annotation$p_value[i] <= 0.01 && p_annotation$p_value[i] > 0.001)
+     p_annotation$annotation[i] = paste0(p_annotation$annotation[i]," *")
+ }
+
+## vis
+p = ggplot(count_by_prevalance[count_by_prevalance$Species != "Vibrio_fluvialis",])+
+   facet_wrap(~ Species,scales = "free",ncol = 5) +
+   geom_bar(aes(x=(Intervals)/100,y=Relative_count),size =1,stat = "identity",fill = "#D78F5D")+
+   geom_line(aes(x=(Intervals)/100,y=Relative_background) , color = "grey40",size =1)+
+   labs(y="Proportion",x = "Conservarion",title = element_blank())+
+     theme_classic(base_size = 15)+
+     theme(#axis.line.x = element_blank(),
+           axis.text.x= element_text(size = 17.5,angle = 60,hjust = 1,vjust = 1,color = "black"),
+           axis.text.y= element_text(size = 20,color = "black"),
+           strip.background = element_blank())+
+     theme(axis.title =element_text(color="black",size = 25))+
+     coord_trans(x = "sqrt",y="sqrt")+
+   scale_x_continuous(breaks = c(0.01,0.1,0.3,0.6,1.0))+
+   scale_y_continuous(breaks = c(0.01,0.1,0.3,0.6))
+ p
+  p + geom_text(data = p_annotation[p_annotation$Species != "Vibrio_fluvialis",], aes(x = x, y = y, label = annotation,group = Species), size = 5, color = "black")
+ ggsave(paste0("./data/pangenome_res/prevalance/total_facet5",".pdf"),height = 12.5,width = 15)
+
+
+```
